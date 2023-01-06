@@ -98,6 +98,7 @@ sax = ["sax==0.8.6", "jaxlib", "jax"]
 femwell = ["femwell==0.0.3", "petsc", "petsc4py", "slepc", "slepc4py"]
 dev = [
     "autotyping",
+    "nbqa[toolchain]",
     "black>=21",
     "doc8",
     "mypy",
