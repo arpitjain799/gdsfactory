@@ -187,6 +187,6 @@ constructor:
 	constructor .
 
 nbqa:
-	nbqa blacken-docs docs/notebooks/**/*.ipynb --nbqa-md --nbqa-diffblacken-docs
+	nbqa blacken-docs docs/notebooks/**/*.ipynb --nbqa-md
 
 .PHONY: gdsdiff build conda
