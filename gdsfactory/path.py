@@ -965,9 +965,13 @@ def extrude_segments(
     Like extrude, but splits the path in segments of length segment_lengths, each associated with a cross_section in cross_sections.
 
     Args:
-        (See extrude)
-        cross_sections: list of CrossSectionSpec
-        segment_lengths: list of segment lengths
+        p: path.
+        cross_sections: list of CrossSectionSpec.
+        segment_lengths: list of segment lengths.
+        layer: spec.
+        simplify: simplify.
+        shear_angle_start:
+        shear_angle_end:
 
     """
     from shapely.geometry import LineString
