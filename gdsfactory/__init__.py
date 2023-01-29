@@ -129,4 +129,4 @@ __all__ = (
     "technology",
     "PATH",
 )
-__version__ = "6.23.4"
+__version__ = "6.25.2"
