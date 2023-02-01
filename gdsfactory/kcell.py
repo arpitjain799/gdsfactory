@@ -226,7 +226,7 @@ class Port:
         layer: Optional[Tuple[int, int]] = None,
         port_type: str = "optical",
         trans: Optional[kdb.Trans | str] = None,
-        orientation: Optional[int] = None,
+        orientation: Optional[float] = None,
         center: Optional[tuple[int, int]] = None,
         mirror_x: bool = False,
         port: Optional["Port"] = None,
@@ -234,6 +234,8 @@ class Port:
         shear_angle: Optional[float] = None,
     ):
         from gdsfactory.pdk import get_cross_section
+
+        orientation = int(orientation / 90) if orientation is not None else None
 
         self.cross_section = get_cross_section(cross_section) if cross_section else None
         self.shear_angle = shear_angle
@@ -635,7 +637,7 @@ class KCell:
         """Draw all the ports on their respective :py:attr:`Port.layer`:"""
         for port in self.ports._ports:
             w = port.width
-            poly = kdb.Polygon(
+            poly = kdb.DPolygon(
                 [kdb.DPoint(0, -w // 2), kdb.DPoint(0, w // 2), kdb.DPoint(w // 2, 0)]
             )
             layer = self.library.layer(*port.layer)

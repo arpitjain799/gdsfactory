@@ -74,7 +74,7 @@ if __name__ == "__main__":
         width=2,
         layer=(0, 0),
         angle=90,
-        # cross_section="rib",
+        cross_section="rib",
         with_bbox=True,
     )
     # c = bend_circular()

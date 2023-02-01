@@ -975,19 +975,19 @@ class Component(KCell):
 
     @property
     def xmin(self):
-        return self.bbox().left
+        return self.bbox().left * self.library.dbu
 
     @property
     def xmax(self):
-        return self.bbox().right
+        return self.bbox().right * self.library.dbu
 
     @property
     def ymin(self):
-        return self.bbox().bottom
+        return self.bbox().bottom * self.library.dbu
 
     @property
     def ymax(self):
-        return self.bbox().top
+        return self.bbox().top * self.library.dbu
 
     def extract(
         self,
