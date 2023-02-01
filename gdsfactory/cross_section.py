@@ -4,6 +4,7 @@ To create a component you need to extrude the path with a cross-section.
 """
 from __future__ import annotations
 
+import hashlib
 import inspect
 import sys
 from collections.abc import Iterable
@@ -15,20 +16,60 @@ import pydantic
 from pydantic import BaseModel, Field
 from typing_extensions import Literal
 
-from gdsfactory.add_pins import add_bbox_siepic, add_pins_siepic_optical_2nm
-from gdsfactory.tech import Section
 
 Layer = Tuple[int, int]
 Layers = Tuple[Layer, ...]
 WidthTypes = Literal["sine", "linear", "parabolic"]
 
-LayerSpec = Union[Layer, int, str, None]
+LayerSpec = Union[Layer, int, str]
 LayerSpecs = Union[List[LayerSpec], Tuple[LayerSpec, ...]]
 Floats = Tuple[float, ...]
 port_names_electrical = ("e1", "e2")
 port_types_electrical = ("electrical", "electrical")
-cladding_layers_optical = ("DEVREC",)  # for SiEPIC verification
-cladding_offsets_optical = (0,)  # for SiEPIC verification
+
+cladding_layers_optical = None
+cladding_offsets_optical = None
+
+
+class Section(BaseModel):
+    """CrossSection to extrude a path with a waveguide.
+
+    Parameters:
+        width: of the section (um) or parameterized function from 0 to 1.
+             the width at t==0 is the width at the beginning of the Path.
+             the width at t==1 is the width at the end.
+        offset: center offset (um) or function parameterized function from 0 to 1.
+             the offset at t==0 is the offset at the beginning of the Path.
+             the offset at t==1 is the offset at the end.
+        layer: layer spec.
+        port_names: Optional port names.
+        port_types: optical, electrical, ...
+        name: Optional Section name.
+        hidden: hide layer.
+
+    .. code::
+          0   offset
+          |<-------------->|
+          |              _____
+          |             |     |
+          |             |layer|
+          |             |_____|
+          |              <---->
+                         width
+    """
+
+    width: Union[float, Callable]
+    offset: Union[float, Callable] = 0
+    layer: LayerSpec
+    port_names: Tuple[Optional[str], Optional[str]] = (None, None)
+    port_types: Tuple[str, str] = ("optical", "optical")
+    name: Optional[str] = None
+    hidden: bool = False
+
+    class Config:
+        """pydantic basemodel config."""
+
+        extra = "forbid"
 
 
 class CrossSection(BaseModel):
@@ -66,6 +107,7 @@ class CrossSection(BaseModel):
         name: cross_section name.
         add_center_section: whether a section with `width` and `layer`
               is added during extrude.
+        mirror: if True, reflects the offsets.
     """
 
     layer: LayerSpec
@@ -93,6 +135,18 @@ class CrossSection(BaseModel):
     info: Dict[str, Any] = Field(default_factory=dict)
     name: Optional[str] = None
     add_center_section: bool = True
+    mirror: bool = False
+
+    def __init__(__pydantic_self__, **data: Any) -> None:
+        """Extend BaseModel init to process mirroring."""
+        super().__init__(**data)
+
+        if "mirror" in data and data["mirror"]:
+            data["offset"] *= -1
+            for section in data["sections"]:
+                section.offset *= -1
+            for offset in data["cladding_offsets"]:
+                offset *= -1
 
     class Config:
         """Configuration."""
@@ -104,20 +158,22 @@ class CrossSection(BaseModel):
             "add_bbox": {"exclude": True},
         }
 
-    def copy(self, width: Optional[float] = None):
-        xs = super().copy()
+    def copy(self, **kwargs):
+        """Returns a CrossSection copy."""
+        xs = super().copy(update=kwargs)
         xs.decorator = self.decorator
         xs.add_pins = self.add_pins
         xs.add_bbox = self.add_bbox
-
-        if width:
-            xs.width = width
         return xs
+
+    def get_name(self) -> str:
+        h = hashlib.md5(str(self).encode()).hexdigest()[:8]
+        return f"xs_{h}"
 
     @property
     def aliases(self) -> Dict[str, Section]:
-        s = dict(
-            _default=Section(
+        s = {
+            "_default": Section(
                 width=self.width,
                 offset=self.offset,
                 layer=self.layer,
@@ -125,7 +181,7 @@ class CrossSection(BaseModel):
                 port_types=self.port_types,
                 name="_default",
             )
-        )
+        }
         sections = self.sections or []
         for section in sections:
             if section.name:
@@ -247,6 +303,8 @@ def cross_section(
     add_pins: Optional[Callable] = None,
     add_bbox: Optional[Callable] = None,
     add_center_section: bool = True,
+    mirror: bool = False,
+    name: Optional[str] = None,
 ) -> CrossSection:
     """Return CrossSection.
 
@@ -280,6 +338,9 @@ def cross_section(
         add_bbox: optional function to add bounding box to component.
         add_center_section: whether a section with `width` and `layer`
               is added during extrude.
+        mirror: if True, reflects the offsets.
+        name: cross_section name.
+
 
     .. plot::
         :include-source:
@@ -316,16 +377,12 @@ def cross_section(
         add_bbox=add_bbox,
         add_pins=add_pins,
         add_center_section=add_center_section,
+        mirror=mirror,
+        name=name,
     )
 
 
-strip = partial(
-    cross_section,
-    add_pins=add_pins_siepic_optical_2nm,
-    add_bbox=add_bbox_siepic,
-    cladding_layers=("DEVREC",),  # for SiEPIC verification
-    cladding_offsets=(0,),  # for SiEPIC verification
-)
+strip = cross_section
 strip_auto_widen = partial(strip, width_wide=0.9, auto_widen=True)
 strip_no_pins = partial(
     strip, add_pins=None, add_bbox=None, cladding_layers=None, cladding_offsets=None
@@ -577,6 +634,7 @@ def pn(
     gap_low_doping: float = 0.0,
     gap_medium_doping: Optional[float] = 0.5,
     gap_high_doping: Optional[float] = 1.0,
+    offset_low_doping: Optional[float] = 0.0,
     width_doping: float = 8.0,
     width_slab: float = 7.0,
     layer_p: LayerSpec = "P",
@@ -594,6 +652,7 @@ def pn(
     bbox_offsets: Optional[List[float]] = None,
     cladding_layers: Optional[Layers] = cladding_layers_optical,
     cladding_offsets: Optional[Floats] = cladding_offsets_optical,
+    mirror: bool = False,
 ) -> CrossSection:
     """Rib PN doped cross_section.
 
@@ -605,6 +664,7 @@ def pn(
         gap_medium_doping: from waveguide center to medium doping.
             None removes medium doping.
         gap_high_doping: from center to high doping. None removes it.
+        offset_low_doping: in um, between waveguide center and junction gap center towards n-side.
         width_doping: in um.
         width_slab: in um.
         layer_p: p doping layer.
@@ -622,24 +682,32 @@ def pn(
         port_names: for input and output ('o1', 'o2').
         bbox_layers: list of layers for rectangular bounding box.
         bbox_offsets: list of bounding box offsets.
+        mirror: if True, reflects the n and p sections.
 
     .. code::
 
                                    layer
-                           |<------width------>|
-                            ____________________
-                           |     |       |     |
-        ___________________|     |       |     |__________________________|
-                    P            |       |              N                 |
-                 width_p         |       |           width_n              |
-        <----------------------->|       |<------------------------------>|
-                                     |<->|
-                                     gap_low_doping
-                                     |         |        N+                |
-                                     |         |     width_np             |
-                                     |         |<------------------------>|
-                                     |<------->|
-                                           gap_medium_doping
+                           |<-------width------->|
+
+                                  offset_low_doping
+                                     <->
+                                     |  |
+                             waveguide   junction
+                                center   center
+                                     |  |
+                           _______________________
+                           |       |         |   |
+        ___________________|       |         |   |__________________________|
+                        P          |         |              N               |
+                    width_p        |         |           width_n            |
+        <------------------------->|         |<---------------------------->|
+                                   |<------->|
+                                    gap_low_doping
+                                     |             |        N+              |
+                                     |             |     width_np           |
+                                     |             |<---------------------->|
+                                     |<----------->|
+                                   gap_medium_doping
 
     .. plot::
         :include-source:
@@ -653,11 +721,19 @@ def pn(
     """
     slab = Section(width=width_slab, offset=0, layer=layer_slab)
     sections = [slab]
-    offset_low_doping = width_doping / 2 + gap_low_doping
-    width_low_doping = width_doping - gap_low_doping
+    base_offset_low_doping = width_doping / 2 + gap_low_doping / 4
+    width_low_doping = width_doping - gap_low_doping / 2
 
-    n = Section(width=width_low_doping, offset=+offset_low_doping, layer=layer_n)
-    p = Section(width=width_low_doping, offset=-offset_low_doping, layer=layer_p)
+    n = Section(
+        width=width_low_doping + offset_low_doping,
+        offset=+base_offset_low_doping - offset_low_doping / 2,
+        layer=layer_n,
+    )
+    p = Section(
+        width=width_low_doping - offset_low_doping,
+        offset=-base_offset_low_doping - offset_low_doping / 2,
+        layer=layer_p,
+    )
     sections.append(n)
     sections.append(p)
 
@@ -725,17 +801,17 @@ def pn(
         )
         sections.append(s)
 
-    info = dict(
-        width=width,
-        layer=layer,
-        bbox_layers=bbox_layers,
-        bbox_offsets=bbox_offsets,
-        gap_low_doping=gap_low_doping,
-        gap_medium_doping=gap_medium_doping,
-        gap_high_doping=gap_high_doping,
-        width_doping=width_doping,
-        width_slab=width_slab,
-    )
+    info = {
+        "width": width,
+        "layer": layer,
+        "bbox_layers": bbox_layers,
+        "bbox_offsets": bbox_offsets,
+        "gap_low_doping": gap_low_doping,
+        "gap_medium_doping": gap_medium_doping,
+        "gap_high_doping": gap_high_doping,
+        "width_doping": width_doping,
+        "width_slab": width_slab,
+    }
     return CrossSection(
         width=width,
         offset=0,
@@ -745,6 +821,7 @@ def pn(
         sections=sections,
         cladding_offsets=cladding_offsets,
         cladding_layers=cladding_layers,
+        mirror=mirror,
     )
 
 
@@ -1177,7 +1254,6 @@ def pn_ge_detector_si_contacts(
     layer_via: LayerSpec = None,
     width_via: float = 1.0,
     layer_metal: LayerSpec = None,
-    width_metal: float = 1.0,
     port_names: Tuple[str, str] = ("o1", "o2"),
     bbox_layers: Optional[List[Layer]] = None,
     bbox_offsets: Optional[List[float]] = None,
@@ -1216,7 +1292,6 @@ def pn_ge_detector_si_contacts(
         layer_via: via layer.
         width_via: via width in um.
         layer_metal: metal layer.
-        width_metal: metal width in um.
         bbox_layers: list of layers for rectangular bounding box.
         bbox_offsets: list of bounding box offsets.
         port_names: for input and output ('o1', 'o2').
@@ -1325,17 +1400,17 @@ def pn_ge_detector_si_contacts(
     s = Section(width=width_ge, offset=0, layer=layer_ge)
     sections.append(s)
 
-    info = dict(
-        width=width_si,
-        layer=layer_si,
-        bbox_layers=bbox_layers,
-        bbox_offsets=bbox_offsets,
-        gap_low_doping=gap_low_doping,
-        gap_medium_doping=gap_medium_doping,
-        gap_high_doping=gap_high_doping,
-        width_doping=width_doping,
-        width_slab=0.0,
-    )
+    info = {
+        "width": width_si,
+        "layer": layer_si,
+        "bbox_layers": bbox_layers,
+        "bbox_offsets": bbox_offsets,
+        "gap_low_doping": gap_low_doping,
+        "gap_medium_doping": gap_medium_doping,
+        "gap_high_doping": gap_high_doping,
+        "width_doping": width_doping,
+        "width_slab": 0.0,
+    }
     return CrossSection(
         width=width_si,
         offset=0,
@@ -1392,7 +1467,14 @@ def test_copy():
 if __name__ == "__main__":
     import gdsfactory as gf
 
-    xs = gf.cross_section.pn(width=0.5, gap_low_doping=0, width_doping=2.0)
-    p = gf.path.straight()
+    # xs = gf.cross_section.pin(
+    #     width=0.5,
+    #     # gap_low_doping=0.05,
+    #     # width_doping=2.0,
+    #     # offset_low_doping=0,
+    #     mirror=False,
+    # )
+    xs = strip()
+    p = gf.path.arc()
     c = p.extrude(xs)
     c.show()

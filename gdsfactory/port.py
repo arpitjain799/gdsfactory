@@ -12,7 +12,6 @@ we follow start from the bottom left and name the ports counter-clock-wise
          |   |
          8   7
 
-
 You can also rename them with W,E,S,N prefix (west, east, south, north).
 
     .. code::
@@ -25,6 +24,7 @@ You can also rename them with W,E,S,N prefix (west, east, south, north).
              |   |
             S0   S1
 
+Adapted from PHIDL https://github.com/amccaugh/phidl/ by Adam McCaughan
 """
 from __future__ import annotations
 
@@ -35,6 +35,7 @@ from functools import partial
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import kfactory as kf
+from kfactory import kdb
 import numpy as np
 from numpy import ndarray
 from omegaconf import OmegaConf
@@ -110,6 +111,11 @@ class Port:
         if cross_section is None and width is None:
             raise ValueError("You need Port to define cross_section or width")
 
+        if cross_section and not isinstance(cross_section, CrossSection):
+            raise ValueError(
+                f"cross_section = {cross_section} is not a valid CrossSection."
+            )
+
         if layer is None:
             layer = cross_section.layer
 
@@ -123,29 +129,31 @@ class Port:
             raise ValueError(f"Port width must be >=0. Got {self.width}")
 
     def to_dict(self) -> Dict[str, Any]:
-        d = dict(
-            name=self.name,
-            width=self.width,
-            center=tuple(np.round(self.center, 3)),
-            orientation=int(self.orientation) if self.orientation else self.orientation,
-            layer=self.layer,
-            port_type=self.port_type,
-        )
+        d = {
+            "name": self.name,
+            "width": self.width,
+            "center": tuple(np.round(self.center, 3)),
+            "orientation": int(self.orientation)
+            if self.orientation
+            else self.orientation,
+            "layer": self.layer,
+            "port_type": self.port_type,
+        }
         if self.shear_angle:
             d["shear_angle"] = self.shear_angle
         return clean_value_json(d)
 
     def to_yaml(self) -> str:
-        d = dict(
-            name=self.name,
-            width=float(self.width),
-            center=[float(self.center[0]), float(self.center[1])],
-            orientation=float(self.orientation)
+        d = {
+            "name": self.name,
+            "width": float(self.width),
+            "center": [float(self.center[0]), float(self.center[1])],
+            "orientation": float(self.orientation)
             if self.orientation
             else float(self.orientation),
-            layer=self.layer,
-            port_type=self.port_type,
-        )
+            "layer": self.layer,
+            "port_type": self.port_type,
+        }
         d = OmegaConf.create(d)
         return OmegaConf.to_yaml(d)
 
@@ -163,10 +171,15 @@ class Port:
     @classmethod
     def validate(cls, v):
         """For pydantic assumes Port is valid if has a name and a valid type."""
+        assert isinstance(v, Port), f"TypeError, Got {type(v)}, expecting Port"
         assert v.name, f"Port has no name, got `{v.name}`"
         # assert v.assert_on_grid(), f"port.center = {v.center} has off-grid points"
-        assert isinstance(v, Port), f"TypeError, Got {type(v)}, expecting Port"
         return v
+
+    @property
+    def trans(self):
+        mirror = self.parent.mirror if self.parent else False
+        return kdb.Trans(int(self.orientation / 90), mirror)
 
     @property
     def settings(self):
@@ -175,14 +188,14 @@ class Port:
         delete this. Use to_dict instead
 
         """
-        return dict(
-            name=self.name,
-            center=self.center,
-            width=self.width,
-            orientation=self.orientation,
-            layer=self.layer,
-            port_type=self.port_type,
-        )
+        return {
+            "name": self.name,
+            "center": self.center,
+            "width": self.width,
+            "orientation": self.orientation,
+            "layer": self.layer,
+            "port_type": self.port_type,
+        }
 
     def move(self, vector) -> None:
         self.center = self.center + np.array(vector)
@@ -976,9 +989,17 @@ if __name__ == "__main__":
 
     import gdsfactory as gf
 
-    # c = gf.Component()
+    c = gf.Component()
+    cross_section = gf.cross_section.strip
+    c.add_port(
+        "o1",
+        center=(0, 0),
+        orientation=0,
+        port_type="optical",
+        cross_section=cross_section,
+    )
 
-    c = gf.components.straight_heater_metal()
+    # c = gf.components.straight_heater_metal()
     # c.auto_rename_ports()
     # auto_rename_ports_layer_orientation(c)
     # m = map_ports_layer_to_orientation(c.ports)
@@ -988,4 +1009,4 @@ if __name__ == "__main__":
     # p0 = c.get_ports_list(orientation=0, clockwise=False)[0]
     # print(p0)
     # print(type(p0.to_dict()["center"][0]))
-    p = Port("o1", orientation=0, center=(9, 0), layer=(1, 0), width=10)
+    # p = Port("o1", orientation=0, center=(9, 0), layer=(1, 0), cross_section=)

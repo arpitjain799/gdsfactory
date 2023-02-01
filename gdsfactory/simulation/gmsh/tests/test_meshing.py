@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import gdsfactory as gf
+from gdsfactory.pdk import get_layer_stack
 from gdsfactory.simulation.gmsh.uz_xsection_mesh import uz_xsection_mesh
 from gdsfactory.simulation.gmsh.xy_xsection_mesh import xy_xsection_mesh
-from gdsfactory.tech import LayerStack, get_layer_stack_generic
+from gdsfactory.simulation.gmsh.xyz_mesh import xyz_mesh
+from gdsfactory.technology import LayerStack
 
 
 def test_gmsh_uz_xsection_mesh():
@@ -12,7 +14,7 @@ def test_gmsh_uz_xsection_mesh():
 
     filtered_layerstack = LayerStack(
         layers={
-            k: get_layer_stack_generic().layers[k]
+            k: get_layer_stack().layers[k]
             for k in (
                 "slab90",
                 "core",
@@ -22,11 +24,11 @@ def test_gmsh_uz_xsection_mesh():
         }
     )
 
-    resolutions = {}
-    resolutions["core"] = {"resolution": 0.05, "distance": 2}
-    resolutions["slab90"] = {"resolution": 0.03, "distance": 1}
-    resolutions["via_contact"] = {"resolution": 0.1, "distance": 1}
-
+    resolutions = {
+        "core": {"resolution": 0.05, "distance": 2},
+        "slab90": {"resolution": 0.03, "distance": 1},
+        "via_contact": {"resolution": 0.1, "distance": 1},
+    }
     uz_xsection_mesh(
         waveguide,
         [(4, -15), (4, 15)],
@@ -34,7 +36,6 @@ def test_gmsh_uz_xsection_mesh():
         resolutions=resolutions,
         background_tag="Oxide",
     )
-    assert True
 
 
 def test_gmsh_xy_xsection_mesh():
@@ -43,11 +44,11 @@ def test_gmsh_xy_xsection_mesh():
     waveguide = gf.components.straight_pin(length=10, taper=None)
     waveguide.show()
 
-    from gdsfactory.tech import get_layer_stack_generic
+    from gdsfactory.pdk import get_layer_stack
 
     filtered_layerstack = LayerStack(
         layers={
-            k: get_layer_stack_generic().layers[k]
+            k: get_layer_stack().layers[k]
             for k in (
                 "slab90",
                 "core",
@@ -56,10 +57,10 @@ def test_gmsh_xy_xsection_mesh():
         }
     )
 
-    resolutions = {}
-    resolutions["core"] = {"resolution": 0.05, "distance": 0.1}
-    resolutions["via_contact"] = {"resolution": 0.1, "distance": 0}
-
+    resolutions = {
+        "core": {"resolution": 0.05, "distance": 0.1},
+        "via_contact": {"resolution": 0.1, "distance": 0},
+    }
     xy_xsection_mesh(
         component=waveguide,
         z=0.09,
@@ -67,4 +68,28 @@ def test_gmsh_xy_xsection_mesh():
         resolutions=resolutions,
         background_tag="Oxide",
     )
-    assert True
+
+
+def test_gmsh_xyz_holes():
+    c = gf.component.Component()
+    c << gf.get_component(gf.components.ring_crow)
+
+    from gdsfactory.pdk import get_layer_stack
+
+    filtered_layerstack = LayerStack(
+        layers={k: get_layer_stack().layers[k] for k in ("core",)}
+    )
+
+    xyz_mesh(
+        component=c,
+        layerstack=filtered_layerstack,
+        resolutions={},
+        filename="mesh.msh",
+        verbosity=False,
+    )
+
+
+if __name__ == "__main__":
+    test_gmsh_xy_xsection_mesh()
+    test_gmsh_uz_xsection_mesh()
+    test_gmsh_xyz_holes()

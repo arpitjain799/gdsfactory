@@ -32,7 +32,7 @@ def show(component: Union[Component, str, pathlib.Path], **kwargs) -> None:
         )
 
     elif hasattr(component, "write"):
-        gdspath = component.write(logging=False, **kwargs)
+        gdspath = component.write_gds(**kwargs)
         klive.show(gdspath)
     else:
         raise ValueError(
