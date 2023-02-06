@@ -4,14 +4,18 @@ instances:
   wgn:
     component: straight
     info:
+      cross_section: strip
       length: 0.5
+      separation: 3.5
       width: 0.5
     settings:
       length: 0.5
   wgw:
     component: straight
     info:
+      cross_section: strip
       length: 1.0
+      separation: 3.5
       width: 0.5
     settings:
       length: 1

@@ -1,3 +1,7 @@
+"""Component is a canvas for geometry.
+
+Adapted from PHIDL https://github.com/amccaugh/phidl/ by Adam McCaughan
+"""
 from __future__ import annotations
 
 import datetime
@@ -43,6 +47,7 @@ from gdsfactory.port import (
 from gdsfactory.serialization import clean_dict
 from gdsfactory.snap import snap_to_grid
 from gdsfactory.technology import LayerView, LayerViews
+from gdsfactory.generic_tech import LAYER
 
 Plotter = Literal["holoviews", "matplotlib", "qt", "klayout"]
 Axis = Literal["x", "y"]
@@ -1004,10 +1009,7 @@ class Component(kf.KCell):
         self,
         layers: List[Union[Tuple[int, int], str]],
     ) -> Component:
-        """Extract polygons from a Component and returns a new Component.
-
-        based on phidl.geometry.
-        """
+        """Extract polygons from a Component and returns a new Component."""
         from gdsfactory.pdk import get_layer
 
         if type(layers) not in (list, tuple):
@@ -1024,7 +1026,7 @@ class Component(kf.KCell):
             if layer in poly_dict:
                 polygons = poly_dict[layer]
                 for polygon in polygons:
-                    component.add_polygon(polygon)
+                    component.add_polygon(polygon, layer)
 
         for layer in layers:
             for path in self._cell.get_paths(layer=layer):
@@ -1333,15 +1335,19 @@ class Component(kf.KCell):
 
         self.show(show_ports=True)  # show in klayout
         self.__repr__()
-        self.plot()
+        self.plot_klayout()
 
     def plot_klayout(self) -> None:
+        """Returns ipython widget for klayout visualization.
+
+        Defaults to matplotlib if it fails to import ipywidgets.
+        """
         try:
             from gdsfactory.pdk import get_layer_views
             from gdsfactory.widgets.layout_viewer import LayoutViewer
             from IPython.display import display
 
-            gdspath = self.write_gds()
+            gdspath = self.write_gds(logging=False)
             lyp_path = gdspath.with_suffix(".lyp")
 
             layer_views = get_layer_views()
@@ -1352,7 +1358,46 @@ class Component(kf.KCell):
             print(
                 "You can install `pip install gdsfactory[full]` for better visualization"
             )
-            return self.plot(plotter="matplotlib")
+            self.plot(plotter="matplotlib")
+
+    def plot_jupyter(self):
+        """Shows current gds in klayout. Uses Kweb if server running.
+
+        if not tries using Klayout widget and finally defaults to matplotlib.
+        """
+        try:
+            import os
+            from gdsfactory.config import PATH
+            from gdsfactory.pdk import get_layer_views
+            from IPython.display import IFrame
+            import kweb.server_jupyter as kj
+            from html import escape
+
+            gdspath = self.write_gds(gdsdir=PATH.gdslib / "extra", logging=False)
+
+            dirpath = pathlib.Path(tempfile.TemporaryDirectory().name) / "gdsfactory"
+            dirpath.mkdir(exist_ok=True, parents=True)
+            lyp_path = dirpath / "layers.lyp"
+
+            layer_props = get_layer_views()
+            layer_props.to_lyp(filepath=lyp_path)
+
+            src = f"http://127.0.0.1:8000/gds?gds_file={escape(str(gdspath))}&layer_props={escape(str(lyp_path))}"
+            logger.debug(src)
+
+            if kj.jupyter_server and not os.environ.get("DOCS", False):
+                return IFrame(
+                    src=src,
+                    width=1400,
+                    height=600,
+                )
+            else:
+                return self.plot_klayout()
+        except ImportError:
+            print(
+                "You can install `pip install gdsfactory[full]` for better visualization"
+            )
+            return self.plot_klayout()
 
     def plot_matplotlib(self, **kwargs) -> None:
         """Plot component using matplotlib.
@@ -1388,12 +1433,14 @@ class Component(kf.KCell):
         plotter = plotter or CONF.get("plotter", "klayout")
 
         if plotter == "klayout":
-            return self.plot_klayout()
+            self.plot_klayout()
+            return
 
         elif plotter == "matplotlib":
             from gdsfactory.quickplotter import quickplot
 
-            return quickplot(self, **kwargs)
+            quickplot(self, **kwargs)
+            return
 
         elif plotter == "holoviews":
             try:
@@ -1408,7 +1455,8 @@ class Component(kf.KCell):
         elif plotter == "qt":
             from gdsfactory.quickplotter import quickplot2
 
-            return quickplot2(self)
+            quickplot2(self)
+            return
         else:
             raise ValueError(f"{plotter!r} not in {Plotter}")
 
@@ -1563,6 +1611,7 @@ class Component(kf.KCell):
         xsection_bounds=None,
         layer_stack=None,
         wafer_padding=0.0,
+        wafer_layer=LAYER.WAFER,
         *args,
         **kwargs,
     ):
@@ -1587,7 +1636,7 @@ class Component(kf.KCell):
             [xmax + wafer_padding, ymax + wafer_padding],
             [xmin - wafer_padding, ymax + wafer_padding],
         ]
-        padded_component.add_polygon(points, layer=(99999, 0))
+        padded_component.add_polygon(points, layer=wafer_layer)
 
         if layer_stack is None:
             raise ValueError(
@@ -1968,17 +2017,18 @@ class Component(kf.KCell):
     def remap_layers(
         self, layermap, include_labels: bool = True, include_paths: bool = True
     ) -> Component:
-        """Moves all polygons in the Component from one layer to another according to the layermap argument.
+        """Returns a copy of the component with remapped layers.
 
         Args:
             layermap: Dictionary of values in format {layer_from : layer_to}.
             include_labels: Selects whether to move Labels along with polygons.
             include_paths: Selects whether to move Paths along with polygons.
         """
+        component = self.copy()
         layermap = {_parse_layer(k): _parse_layer(v) for k, v in layermap.items()}
 
-        all_D = list(self.get_dependencies(True))
-        all_D.append(self)
+        all_D = list(component.get_dependencies(True))
+        all_D.append(component)
         for D in all_D:
             for p in D.polygons:
                 layer = (p.layer, p.datatype)
@@ -1997,14 +2047,19 @@ class Component(kf.KCell):
 
             if include_paths:
                 for path in D.paths:
-                    for layer, datatype in zip(path.layers, path.datatypes):
-                        original_layer = (layer, datatype)
-                        original_layer = _parse_layer(original_layer)
+                    new_layers = list(path.layers)
+                    new_datatypes = list(path.datatypes)
+                    for layer_number in range(len(new_layers)):
+                        original_layer = _parse_layer(
+                            (new_layers[layer_number], new_datatypes[layer_number])
+                        )
                         if original_layer in layermap:
                             new_layer = layermap[original_layer]
-                            path.layer = new_layer[0]
-                            path.datatype = new_layer[1]
-        return self
+                            new_layers[layer_number] = new_layer[0]
+                            new_datatypes[layer_number] = new_layer[1]
+                    path.set_layers(*new_layers)
+                    path.set_datatypes(*new_datatypes)
+        return component
 
 
 def copy(
@@ -2269,7 +2324,7 @@ def test_netlist_complex() -> None:
     assert len(netlist["instances"]) == 4, len(netlist["instances"])
 
 
-def test_extract() -> None:
+def test_extract() -> Component:
     import gdsfactory as gf
 
     c = gf.components.straight(
@@ -2286,6 +2341,7 @@ def test_extract() -> None:
 
     assert len(c.polygons) == 2, len(c.polygons)
     assert len(c2.polygons) == 1, len(c2.polygons)
+    assert gf.LAYER.WGCLAD in c2.layers
     return c2
 
 
@@ -2295,7 +2351,7 @@ def hash_file(filepath):
     return md5.hexdigest()
 
 
-def test_bbox_reference():
+def test_bbox_reference() -> Component:
     import gdsfactory as gf
 
     c = gf.Component("component_with_offgrid_polygons")
@@ -2418,3 +2474,5 @@ if __name__ == "__main__":
     # c = test_get_layers()
     # c.plot_qt()
     # c.ploth()
+    c = test_extract()
+    c.show()

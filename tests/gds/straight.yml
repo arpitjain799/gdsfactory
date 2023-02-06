@@ -29,6 +29,8 @@ cells:
     info:
       length: 1.234
       width: 0.5
+      cross_section: strip
+      separation: 3.5
     info_version: 2
     full:
       length: 1.234
@@ -44,7 +46,6 @@ cells:
       cross_section: strip
     child: null
 name: straight_length1p234
-version: 0.0.1
 settings:
   name: straight_length1p234
   module: gdsfactory.components.straight
@@ -52,6 +53,8 @@ settings:
   info:
     length: 1.234
     width: 0.5
+    cross_section: strip
+    separation: 3.5
   info_version: 2
   full:
     length: 1.234

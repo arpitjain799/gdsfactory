@@ -382,7 +382,13 @@ def cross_section(
     )
 
 
-strip = cross_section
+def strip(width: Union[Callable, float] = 0.5, **kwargs) -> CrossSection:
+    """Returns Strip cross-section."""
+    cs = cross_section(width=width, **kwargs)
+    cs.info["separation"] = width + 3.0
+    return cs
+
+
 strip_auto_widen = partial(strip, width_wide=0.9, auto_widen=True)
 strip_no_pins = partial(
     strip, add_pins=None, add_bbox=None, cladding_layers=None, cladding_offsets=None
@@ -767,14 +773,14 @@ def pn(
         sections.append(ppp)
 
     if layer_via is not None:
-        offset = width_high_doping / 2 + gap_high_doping
+        offset = width_high_doping + gap_high_doping - width_via / 2
         via_top = Section(width=width_via, offset=+offset, layer=layer_via)
         via_bot = Section(width=width_via, offset=-offset, layer=layer_via)
         sections.append(via_top)
         sections.append(via_bot)
 
     if layer_metal is not None:
-        offset = width_high_doping / 2 + gap_high_doping
+        offset = width_high_doping + gap_high_doping - width_metal / 2
         port_types = ("electrical", "electrical")
         metal_top = Section(
             width=width_via,

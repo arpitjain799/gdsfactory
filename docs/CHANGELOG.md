@@ -1,5 +1,34 @@
 # [CHANGELOG](https://keepachangelog.com/en/1.0.0/)
 
+## 6.33.0
+
+- fix kweb and set log level to warning instead of debug [PR](https://github.com/gdsfactory/gdsfactory/pull/1237)
+- Fix handling of gdstk.FlexPath in remap_layers [PR](https://github.com/gdsfactory/gdsfactory/pull/1238)
+- make Component.remap_layers safe [PR](https://github.com/gdsfactory/gdsfactory/pull/1240)
+
+## 6.32.0
+
+- add general JAX interpolator [PR](https://github.com/gdsfactory/gdsfactory/pull/1230)
+- add ring_single_pn and ring_double_pn [PR](https://github.com/gdsfactory/gdsfactory/pull/1228)
+
+## 6.31.0
+
+- rename show_jupyter to plot_jupyter [PR](https://github.com/gdsfactory/gdsfactory/pull/1226)
+- use ComponentSpec string for via_stack_heater_mtop and resistance_meander [PR](https://github.com/gdsfactory/gdsfactory/pull/1224)
+
+## 6.30.2
+
+- Fix wafer layer in 3D meshing [PR](https://github.com/gdsfactory/gdsfactory/pull/1222)
+
+## 6.30.1
+
+- fix extract layers [PR](https://github.com/gdsfactory/gdsfactory/pull/1221)
+
+## 6.30.0
+
+- add all angle router [PR](https://github.com/gdsfactory/gdsfactory/pull/1216)
+- add kweb integration [PR](https://github.com/gdsfactory/gdsfactory/pull/1220)
+
 ## 6.29.0
 
 - add plot_klayout, plot_holoviews, plot_matplotlib. plot defaults to plot_klayout [PR](https://github.com/gdsfactory/gdsfactory/pull/1216)

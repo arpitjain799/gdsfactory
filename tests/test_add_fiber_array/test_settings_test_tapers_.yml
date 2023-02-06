@@ -35,7 +35,9 @@ settings:
         with_bbox: true
       function_name: straight
       info:
+        cross_section: strip
         length: 20.0
+        separation: 5.0
         width: 2.0
       info_version: 2
       module: gdsfactory.components.straight
@@ -65,7 +67,9 @@ settings:
       taper_port_name2: o2
     function_name: add_tapers
     info:
+      cross_section: strip
       length: 20.0
+      separation: 5.0
       width: 2.0
     info_version: 2
     module: gdsfactory.add_tapers
@@ -117,11 +121,13 @@ settings:
         port_type: optical
   function_name: add_fiber_array
   info:
+    cross_section: strip
     grating_coupler:
       period: 0.6759999999999999
       polarization: te
       wavelength: 1.53
     length: 20.0
+    separation: 5.0
     width: 2.0
   info_version: 2
   module: gdsfactory.routing.add_fiber_array

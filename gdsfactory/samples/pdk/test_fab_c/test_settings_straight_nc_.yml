@@ -1,8 +1,8 @@
-name: straight_f84cb6d2
+name: straight_b6408f0b
 settings:
   changed:
     cross_section:
-      function: cross_section
+      function: strip
       settings:
         add_pins:
           function: add_pins
@@ -23,7 +23,7 @@ settings:
     with_bbox: true
   full:
     cross_section:
-      function: cross_section
+      function: strip
       settings:
         add_pins:
           function: add_pins
@@ -41,8 +41,23 @@ settings:
     with_bbox: true
   function_name: straight
   info:
+    cross_section:
+      function: strip
+      settings:
+        add_pins:
+          function: add_pins
+        bbox_layers:
+        - - 36
+          - 0
+        bbox_offsets:
+        - 3
+        layer:
+        - 34
+        - 0
+        width: 1.0
     length: 10.0
+    separation: 4.0
     width: 1.0
   info_version: 2
   module: gdsfactory.components.straight
-  name: straight_f84cb6d2
+  name: straight_b6408f0b

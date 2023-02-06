@@ -193,7 +193,9 @@ from gdsfactory.components.ring_crow import ring_crow
 from gdsfactory.components.ring_crow_couplers import ring_crow_couplers
 from gdsfactory.components.ring_double import ring_double
 from gdsfactory.components.ring_double_heater import ring_double_heater
+from gdsfactory.components.ring_double_pn import ring_double_pn
 from gdsfactory.components.ring_single import ring_single
+from gdsfactory.components.ring_single_pn import ring_single_pn
 from gdsfactory.components.ring_single_array import ring_single_array
 from gdsfactory.components.ring_single_bend_coupler import (
     coupler_bend,
@@ -272,6 +274,7 @@ from gdsfactory.components.via_stack import (
     via_stack,
     via_stack_heater_m3,
     via_stack_slab_m3,
+    via_stack_heater_mtop,
 )
 from gdsfactory.components.via_stack_slot import via_stack_slot, via_stack_slot_m1_m2
 from gdsfactory.components.via_stack_with_offset import via_stack_with_offset
@@ -350,6 +353,7 @@ __all__ = [
     "edge_coupler_array_with_loopback",
     "via_stack",
     "via_stack_heater_m3",
+    "via_stack_heater_mtop",
     "via_stack_slab_m3",
     "via_stack_slot",
     "via_stack_slot_m1_m2",
@@ -483,12 +487,14 @@ __all__ = [
     "ring_crow",
     "ring_crow_couplers",
     "ring_double",
+    "ring_double_pn",
     "ring_double_heater",
     "ring_single",
     "ring_single_heater",
     "ring_single_array",
     "ring_single_dut",
     "ring_single_bend_coupler",
+    "ring_single_pn",
     "seal_ring",
     "spiral_double",
     "spiral_external_io",
