@@ -166,7 +166,7 @@ def write_sparameters(
     port_symmetries = port_symmetries or {}
     component_ref = component.ref()
     ports = component_ref.ports
-    port_names = [port.name for port in list(ports.values())]
+    port_names = [port.name for port in list(ports.copy()._ports)]
 
     sims = []
     sp = {}

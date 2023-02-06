@@ -37,7 +37,7 @@ def get_routes_straight(
         c.plot()
 
     """
-    ports = list(ports.values()) if isinstance(ports, dict) else ports
+    ports = list(ports.copy()._ports) if isinstance(ports, dict) else ports
     straight = straight(**kwargs)
     references = [straight.ref() for _ in ports]
     references = [ref.connect("o1", port) for port, ref in zip(ports, references)]

@@ -147,7 +147,7 @@ def add_fiber_array(
 
     component_new.add_ref(component)
 
-    for port in component.ports.values():
+    for port in component.ports.copy()._ports:
         if port.name not in optical_ports_names:
             component_new.add_port(port.name, port=port)
 

@@ -12,7 +12,7 @@ import numpy as np
 
 from gdsfactory.component import Component
 from gdsfactory.component_layout import Polygon, _rotate_points
-from gdsfactory.component_reference import ComponentReference
+from gdsfactory.component import ComponentReference
 
 _SUBPORT_RGB = (0, 120, 120)
 _PORT_RGB = (190, 0, 0)
@@ -261,7 +261,7 @@ def quickplot(items, **kwargs):  # noqa: C901
                 bbox = _update_bbox(bbox, new_bbox)
             # If item is a Component or ComponentReference, draw ports
             if isinstance(item, (Component, ComponentReference)) and show_ports is True:
-                for port in item.ports.values():
+                for port in item.ports.copy()._ports:
                     if (
                         (port.width is None)
                         or (port.width == 0)
@@ -273,7 +273,7 @@ def quickplot(items, **kwargs):  # noqa: C901
                     bbox = _update_bbox(bbox, new_bbox)
             if isinstance(item, Component) and show_subports is True:
                 for sd in item.references:
-                    for port in sd.ports.values():
+                    for port in sd.ports.copy()._ports:
                         new_bbox = _draw_port(
                             ax,
                             port,
@@ -985,14 +985,14 @@ def quickplot2(item_list, *args, **kwargs):
             # If element is a Component, draw ports and aliases
             if isinstance(element, Component):
                 for ref in element.references:
-                    for port in ref.ports.values():
+                    for port in ref.ports.copy()._ports:
                         viewer.add_port(port, is_subport=True)
-                for port in element.ports.values():
+                for port in element.ports.copy()._ports:
                     viewer.add_port(port)
                     viewer.add_aliases(element.named_references)
             # If element is a ComponentReference, draw ports as subports
             if isinstance(element, ComponentReference):
-                for port in element.ports.values():
+                for port in element.ports.copy()._ports:
                     viewer.add_port(port, is_subport=True)
         elif isinstance(element, (Polygon)):
             layer_tuple = (element.layer, element.datatype)

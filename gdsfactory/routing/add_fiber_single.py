@@ -112,7 +112,7 @@ def add_fiber_single(
     component = gf.get_component(component)
 
     optical_ports = select_ports(component.ports)
-    optical_ports = list(optical_ports.values())
+    optical_ports = list(optical_ports.copy()._ports)
     optical_port_names = [p.name for p in optical_ports]
 
     zero_port = zero_port or optical_port_names[0]
@@ -126,7 +126,7 @@ def add_fiber_single(
     component = move_port_to_zero(component, zero_port) if zero_port else component
 
     optical_ports = select_ports(component.ports)
-    optical_ports = list(optical_ports.values())
+    optical_ports = list(optical_ports.copy()._ports)
     optical_port_names = [p.name for p in optical_ports]
 
     if not optical_ports:
@@ -156,7 +156,7 @@ def add_fiber_single(
 
     elements = []
 
-    for port in cr.ports.values():
+    for port in cr.ports.copy()._ports:
         if port.name not in optical_port_names:
             c.add_port(name=port.name, port=port)
 
@@ -166,7 +166,7 @@ def add_fiber_single(
     ):
 
         grating_couplers = []
-        for port in cr.ports.values():
+        for port in cr.ports.copy()._ports:
             if port.name in optical_port_names:
                 gc_ref = gc.ref()
                 gc_ref.connect(gc_port_name, port)
@@ -175,7 +175,7 @@ def add_fiber_single(
         if get_input_label_text_function:
             elements = get_input_labels(
                 io_gratings=grating_couplers,
-                ordered_ports=list(cr.ports.values()),
+                ordered_ports=list(cr.ports.copy()._ports),
                 component_name=component_name,
                 layer_label=layer_label,
                 gc_port_name=gc_port_name,

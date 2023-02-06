@@ -22,7 +22,7 @@ from gdsfactory.snap import snap_to_grid
 
 if TYPE_CHECKING:
     from gdsfactory.component import Component
-    from gdsfactory.component_reference import ComponentReference
+    from gdsfactory.component import ComponentReference
     from gdsfactory.port import Port
 
 Layer = Tuple[int, int]

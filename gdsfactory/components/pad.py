@@ -17,9 +17,11 @@ def pad(
     bbox_layers: Optional[Tuple[LayerSpec, ...]] = None,
     bbox_offsets: Optional[Tuple[float, ...]] = None,
     port_inclusion: float = 0,
-    port_orientation: Optional[float] = None,
+    port_orientation: Optional[float] = 0,
 ) -> Component:
     """Returns rectangular pad with 4 ports (1, 2, 3, 4).
+
+    TODO: allow None orientation.
 
     Args:
         size: x, y size.
@@ -110,13 +112,13 @@ pad_array180 = partial(pad_array, orientation=180, columns=1, rows=3)
 
 
 if __name__ == "__main__":
-    c = pad()
+    # c = pad()
     # c = pad(layer_to_inclusion={(3, 0): 10})
     # print(c.ports)
     # c = pad(width=10, height=10)
     # print(c.ports.keys())
     # c = pad_array90()
-    # c = pad_array0()
+    c = pad_array0()
     # c = pad_array270()
     # c.pprint_ports()
     # c = pad_array_2d(cols=2, rows=3, port_names=("e2",))

@@ -66,7 +66,7 @@ def add_pins(
         function: kwargs.
 
     """
-    for p in component.ports.values():
+    for p in component.ports.copy()._ports:
         function(
             component=component,
             port=p,

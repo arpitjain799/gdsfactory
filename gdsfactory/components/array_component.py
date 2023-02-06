@@ -53,7 +53,7 @@ def array(
     if add_ports and component.ports:
         for col in range(columns):
             for row in range(rows):
-                for port in component.ports.values():
+                for port in component.ports.copy()._ports:
                     name = f"{port.name}_{row+1}_{col+1}"
                     c.add_port(name, port=port)
                     c.ports[name].move((col * spacing[0], row * spacing[1]))

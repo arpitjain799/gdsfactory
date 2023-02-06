@@ -242,8 +242,8 @@ def test_shear_angle_annotated_on_ports(
 
 
 def test_port_attributes(regular_waveguide, shear_waveguide_symmetric) -> None:
-    regular_ports = [p.to_dict() for p in regular_waveguide.ports.values()]
-    shear_ports = [p.to_dict() for p in shear_waveguide_symmetric.ports.values()]
+    regular_ports = [p.to_dict() for p in regular_waveguide.ports.copy()._ports]
+    shear_ports = [p.to_dict() for p in shear_waveguide_symmetric.ports.copy()._ports]
 
     for p in shear_ports:
         shear_angle = p.pop("shear_angle")

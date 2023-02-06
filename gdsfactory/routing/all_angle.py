@@ -464,7 +464,7 @@ def _get_bend_angles(p0, p1, a0, a1, bend):
 
 
 def _get_minimum_separation(refs: List[ComponentReference], *ports) -> float:
-    all_ports = [p for ref in refs for p in ref.ports.values()]
+    all_ports = [p for ref in refs for p in ref.ports.copy()._ports]
     all_ports.extend(ports)
     max_specified_separation = 0
     for port in all_ports:

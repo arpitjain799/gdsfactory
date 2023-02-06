@@ -61,7 +61,7 @@ def from_phidl(component, port_layer: Layer = (1, 0), **kwargs) -> Component:
         component = import_gds(filepath, cache=False, **kwargs)
         component.unlock()
 
-    for p in device.ports.values():
+    for p in device.ports.copy()._ports:
         if p.name not in component.ports:
             component.add_port(
                 port=Port(

@@ -340,7 +340,7 @@ class Group(_GeometryHelper):
                 Label, or Group to add.
         """
         from gdsfactory.component import Component
-        from gdsfactory.component_reference import ComponentReference
+        from gdsfactory.component import ComponentReference
 
         if _is_iterable(element):
             [self.add(e) for e in element]

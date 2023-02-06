@@ -59,7 +59,7 @@ def outline(
     for e in elements:
         if isinstance(e, Component):
             D.add_ref(e)
-            port_list += list(e.ports.values())
+            port_list += list(e.ports.copy()._ports)
         else:
             D.add(e)
 

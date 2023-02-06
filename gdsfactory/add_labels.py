@@ -84,7 +84,7 @@ def get_input_label(
     )
 
     if gc_port_name is None:
-        gc_port_name = list(gc.ports.values())[0].name
+        gc_port_name = list(gc.ports.copy()._ports)[0].name
 
     layer_label = gf.get_layer(layer_label)
     layer, texttype = _parse_layer(layer_label)

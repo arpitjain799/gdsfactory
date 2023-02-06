@@ -56,7 +56,7 @@ def add_electrical_pads_top(
         )
     pads.x = ref.x + spacing[0]
     pads.ymin = ref.ymax + spacing[1]
-    ports_pads = list(pads.ports.values())
+    ports_pads = list(pads.ports.copy()._ports)
 
     ports_pads = gf.routing.sort_ports.sort_ports_x(ports_pads)
     ports_component = gf.routing.sort_ports.sort_ports_x(ports_electrical)

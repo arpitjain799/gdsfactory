@@ -55,7 +55,7 @@ def get_routes_bend180(
         c.plot()
 
     """
-    ports = list(ports.values()) if isinstance(ports, dict) else ports
+    ports = list(ports.copy()._ports) if isinstance(ports, dict) else ports
     bend = bend(angle=180, cross_section=cross_section, **kwargs)
 
     bend_ports = bend.get_ports_list()

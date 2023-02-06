@@ -61,7 +61,7 @@ def add_grating_couplers(
 
     io_gratings = []
     optical_ports = select_ports(component.ports)
-    optical_ports = list(optical_ports.values())
+    optical_ports = list(optical_ports.copy()._ports)
     for port in optical_ports:
         gc_ref = grating_coupler.ref()
         gc_port = gc_ref.ports[gc_port_name]
@@ -71,7 +71,7 @@ def add_grating_couplers(
 
     labels = get_input_labels_function(
         io_gratings,
-        list(component.ports.values()),
+        list(component.ports.copy()._ports),
         component_name=component_name,
         layer_label=layer_label,
         gc_port_name=gc_port_name,
@@ -125,7 +125,7 @@ def add_grating_couplers_with_loopback_fiber_single(
 
     io_gratings = []
     optical_ports = select_ports(component.ports)
-    optical_ports = list(optical_ports.values())
+    optical_ports = list(optical_ports.copy()._ports)
 
     for port in optical_ports:
         gc_ref = grating_coupler.ref()
@@ -263,11 +263,11 @@ def add_grating_couplers_with_loopback_fiber_array(
 
     # Find grating port name if not specified
     if gc_port_name is None:
-        gc_port_name = list(gc.ports.values())[0].name
+        gc_port_name = list(gc.ports.copy()._ports)[0].name
 
     # List the optical ports to connect
     optical_ports = select_ports(component.ports)
-    optical_ports = list(optical_ports.values())
+    optical_ports = list(optical_ports.copy()._ports)
 
     optical_ports = [p for p in optical_ports if p.name not in excluded_ports]
     optical_ports = direction_ports_from_list_ports(optical_ports)[direction]

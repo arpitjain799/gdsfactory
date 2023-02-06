@@ -236,7 +236,7 @@ def get_netlist(
                         ports_by_type[parent_port.port_type].append(lower_name)
         else:
             # lower level ports
-            for port in reference.ports.values():
+            for port in reference.ports.copy()._ports:
                 reference_name = get_instance_name(
                     component,
                     reference,

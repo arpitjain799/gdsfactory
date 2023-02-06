@@ -110,7 +110,7 @@ def crossing(
     for i in [arm_h, arm_v]:
         c.add(i)
         c.absorb(i)
-        for p in i.ports.values():
+        for p in i.ports.copy()._ports:
             c.add_port(name=port_id, port=p)
             port_id += 1
     c.auto_rename_ports()

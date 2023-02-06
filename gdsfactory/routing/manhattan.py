@@ -683,7 +683,7 @@ def round_corners(
 
     # If there is a taper, make sure its length is known
     if taper and isinstance(taper, Component) and "length" not in taper.info:
-        _taper_ports = list(taper.ports.values())
+        _taper_ports = list(taper.ports.copy()._ports)
         taper.info["length"] = _taper_ports[-1].x - _taper_ports[0].x
 
     straight_fall_back_no_taper = straight_fall_back_no_taper or straight
@@ -730,7 +730,7 @@ def round_corners(
         )
     except ValueError as exc:
         raise ValueError(
-            f"Did not find 2 ports on layer {layer}. Got {list(bend90.ports.values())}"
+            f"Did not find 2 ports on layer {layer}. Got {list(bend90.ports.copy()._ports)}"
         ) from exc
     n_o_bends = points.shape[0] - 2
     total_length += n_o_bends * bend_length
@@ -752,14 +752,14 @@ def round_corners(
         if abs(dx_points) < TOLERANCE:
             matching_ports = [
                 port
-                for port in bend_ref.ports.values()
+                for port in bend_ref.ports.copy()._ports
                 if np.isclose(port.x, points[i][0])
             ]
 
         if abs(dy_points) < TOLERANCE:
             matching_ports = [
                 port
-                for port in bend_ref.ports.values()
+                for port in bend_ref.ports.copy()._ports
                 if np.isclose(port.y, points[i][1])
             ]
 
@@ -835,7 +835,7 @@ def round_corners(
         x = gf.get_cross_section(xsection, **kwargs)
 
         with_taper = False
-        # wg_width = list(bend90.ports.values())[0].width
+        # wg_width = list(bend90.ports.copy()._ports)[0].width
         length = snap_to_grid(length)
         total_length += length
 
@@ -889,7 +889,7 @@ def round_corners(
         wg_ref = wg.ref()
         wg_ref.move(wg.ports[pname_west], (0, 0))
         if mirror_straight:
-            wg_ref.mirror_y(list(wg_ref.ports.values())[0].name)
+            wg_ref.mirror_y(list(wg_ref.ports.copy()._ports)[0].name)
 
         wg_ref.rotate(angle)
         wg_ref.move(straight_origin)
@@ -928,8 +928,8 @@ def round_corners(
         references += route.references
         labels += route.labels
 
-    port_input = list(wg_refs[0].ports.values())[0]
-    port_output = list(wg_refs[-1].ports.values())[port_index_out]
+    port_input = list(wg_refs[0].ports.copy()._ports)[0]
+    port_output = list(wg_refs[-1].ports.copy()._ports)[port_index_out]
     length = snap_to_grid(float(total_length))
     return Route(
         references=references,
@@ -995,7 +995,7 @@ def generate_manhattan_waypoints(
 
 
 def _get_bend_size(bend90: Component):
-    p1, p2 = list(bend90.ports.values())[:2]
+    p1, p2 = list(bend90.ports.copy()._ports)[:2]
     bsx = abs(p2.x - p1.x)
     bsy = abs(p2.y - p1.y)
     return max(bsx, bsy)

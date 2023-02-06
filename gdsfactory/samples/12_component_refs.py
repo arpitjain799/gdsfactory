@@ -66,7 +66,7 @@ def test_crossing() -> Component:
     port_id = 0
     for a in [arm_h, arm_v]:
         c.add(a)
-        for p in a.ports.values():
+        for p in a.ports.copy()._ports:
             # Here we don't care too much about the name we give to the ports
             # since they will be renamed. We just want the names to be unique
             c.add_port(name=f"{port_id}", port=p)

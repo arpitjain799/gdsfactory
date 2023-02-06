@@ -54,7 +54,7 @@ def fanout_component(
         if port_name not in ref.ports:
             raise ValueError(f"{port_name} not in {list(ref.ports.keys())}")
 
-    ports1 = [p for p in ref.ports.values() if p.name in port_names]
+    ports1 = [p for p in ref.ports.copy()._ports if p.name in port_names]
     port = ports1[0]
     port_extended_x = port.get_extended_center(dx)[0]
     port_settings = port.settings.copy()
@@ -73,7 +73,7 @@ def fanout_component(
         c.add(route.references)
         c.add_port(f"new_{i}", port=flip(p2))
 
-    for port in ref.ports.values():
+    for port in ref.ports.copy()._ports:
         if port.name not in port_names:
             c.add_port(port.name, port=port)
 

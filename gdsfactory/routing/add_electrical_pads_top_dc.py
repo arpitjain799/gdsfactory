@@ -45,7 +45,7 @@ def add_electrical_pads_top_dc(
 
     cref = c << component
     ports = select_ports(cref.ports)
-    ports_component = list(ports.values())
+    ports_component = list(ports.copy()._ports)
     ports_component = [port.copy() for port in ports_component]
 
     for port in ports_component:
@@ -56,7 +56,7 @@ def add_electrical_pads_top_dc(
     pads.x = cref.x + spacing[0]
     pads.ymin = cref.ymax + spacing[1]
 
-    ports_pads = list(pads.ports.values())
+    ports_pads = list(pads.ports.copy()._ports)
     ports_component = sort_ports_x(ports_component)
     ports_pads = sort_ports_x(ports_pads)
 

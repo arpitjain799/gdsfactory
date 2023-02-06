@@ -30,7 +30,6 @@ from gdsfactory.component_layout import (
     _distribute,
     _parse_layer,
 )
-from gdsfactory.component_reference import ComponentReference, Coordinate, SizeInfo
 from gdsfactory.config import CONF, logger
 from gdsfactory.cross_section import CrossSection
 from gdsfactory.port import (
@@ -52,6 +51,60 @@ from gdsfactory.generic_tech import LAYER
 
 Plotter = Literal["holoviews", "matplotlib", "qt", "klayout"]
 Axis = Literal["x", "y"]
+
+Number = Union[float, int]
+Coordinate = Union[Tuple[Number, Number], np.ndarray, List[Number]]
+
+
+class SizeInfo:
+    def __init__(self, bbox: np.ndarray) -> None:
+        """Initialize this object."""
+        self.west = bbox[0, 0]
+        self.east = bbox[1, 0]
+        self.south = bbox[0, 1]
+        self.north = bbox[1, 1]
+
+        self.width = self.east - self.west
+        self.height = self.north - self.south
+
+        xc = 0.5 * (self.east + self.west)
+        yc = 0.5 * (self.north + self.south)
+
+        self.sw = np.array([self.west, self.south])
+        self.se = np.array([self.east, self.south])
+        self.nw = np.array([self.west, self.north])
+        self.ne = np.array([self.east, self.north])
+
+        self.cw = np.array([self.west, yc])
+        self.ce = np.array([self.east, yc])
+        self.nc = np.array([xc, self.north])
+        self.sc = np.array([xc, self.south])
+        self.cc = self.center = np.array([xc, yc])
+
+    def get_rect(
+        self, padding=0, padding_w=None, padding_e=None, padding_n=None, padding_s=None
+    ) -> Tuple[Coordinate, Coordinate, Coordinate, Coordinate]:
+        w, e, s, n = self.west, self.east, self.south, self.north
+
+        padding_n = padding if padding_n is None else padding_n
+        padding_e = padding if padding_e is None else padding_e
+        padding_w = padding if padding_w is None else padding_w
+        padding_s = padding if padding_s is None else padding_s
+
+        w = w - padding_w
+        e = e + padding_e
+        s = s - padding_s
+        n = n + padding_n
+
+        return ((w, s), (e, s), (e, n), (w, n))
+
+    @property
+    def rect(self) -> Tuple[Coordinate, Coordinate]:
+        return self.get_rect()
+
+    def __str__(self) -> str:
+        """Return a string representation of the object."""
+        return f"w: {self.west}\ne: {self.east}\ns: {self.south}\nn: {self.north}\n"
 
 
 class MutabilityError(ValueError):
@@ -106,7 +159,7 @@ class Instance(kf.Instance):
     def connect(
         self,
         port: str,
-        destination: Instance | Port,
+        destination: ComponentReference | Port,
         destination_name: Optional[str] = None,
         *,
         mirror: bool = False,
@@ -128,7 +181,7 @@ class Instance(kf.Instance):
         other = destination
         other_port_name = destination_name
 
-        if isinstance(other, Instance):
+        if isinstance(other, ComponentReference):
             if other_port_name is None:
                 raise ValueError(
                     "portname cannot be None if an Instance Object is given"
@@ -235,8 +288,31 @@ class Instance(kf.Instance):
             d = (o[0], d[1])
 
         dxdy = np.array(d) - np.array(o)
-        self.instance.dtrans = kf.kdb.DTrans(*dxdy) * self.instance.dtrans
+
+        self.instance.dtrans = (
+            kf.kdb.DTrans(float(dxdy[0]), float(dxdy[1])) * self.instance.dtrans
+        )
         return self
+
+    @classmethod
+    def __get_validators__(cls):
+        """Get validators for the Component object."""
+        yield cls.validate
+
+    @classmethod
+    def validate(cls, v):
+        """Pydantic assumes component is valid if the following are true."""
+        MAX_NAME_LENGTH = 100
+        assert isinstance(
+            v, ComponentReference
+        ), f"TypeError, Got {type(v)}, expecting Instance"
+        assert (
+            len(v.name) <= MAX_NAME_LENGTH
+        ), f"name `{v.name}` {len(v.name)} > {MAX_NAME_LENGTH} "
+        return v
+
+
+ComponentReference = Instance
 
 
 class Component(kf.KCell):
@@ -503,7 +579,7 @@ class Component(kf.KCell):
         - name characters < MAX_NAME_LENGTH
         - is not empty (has references or polygons)
         """
-        MAX_NAME_LENGTH = 100
+        MAX_NAME_LENGTH = 99
         assert isinstance(
             v, Component
         ), f"TypeError, Got {type(v)}, expecting Component"
@@ -780,7 +856,7 @@ class Component(kf.KCell):
 
     def assert_ports_on_grid(self, nm: int = 1) -> None:
         """Asserts that all ports are on grid."""
-        for port in self.ports.values():
+        for port in self.ports.copy()._ports:
             port.assert_on_grid(nm=nm)
 
     def get_ports(self, depth=None):
@@ -798,7 +874,7 @@ class Component(kf.KCell):
         Returns:
             port_list : list of Port List of all Ports in the Component.
         """
-        port_list = [p._copy() for p in self.ports.values()]
+        port_list = [p._copy() for p in self.ports.copy()._ports]
 
         if depth is None or depth > 0:
             for r in self.references:
@@ -1034,7 +1110,7 @@ class Component(kf.KCell):
             self.add_port(name=name, port=port)
 
     def snap_ports_to_grid(self, nm: int = 1) -> None:
-        for port in self.ports.values():
+        for port in self.ports.copy()._ports:
             port.snap_to_grid(nm=nm)
 
     def remove_layers(
@@ -1219,16 +1295,17 @@ class Component(kf.KCell):
         """
         if not isinstance(component, Component):
             raise TypeError("add_array() needs a Component object.")
-        ref = ComponentReference(
-            component=component,
-            columns=int(round(columns)),
-            rows=int(round(rows)),
-            spacing=spacing,
+        return self.insert(
+            kdb.DCellInstArray(
+                component.cell_index(),
+                # kdb.DTrans.R0,
+                kdb.DVector(),
+                kdb.DVector(spacing[0], 0),
+                kdb.DVector(0, spacing[1]),
+                columns,
+                rows,
+            )
         )
-        ref.name = None
-        self._add(ref)
-        self._register_reference(reference=ref, alias=alias)
-        return ref
 
     def distribute(
         self, elements="all", direction="x", spacing=100, separation=True, edge="center"

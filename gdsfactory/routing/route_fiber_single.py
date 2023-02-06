@@ -92,7 +92,7 @@ def route_fiber_single(
 
     excluded_ports = excluded_ports or []
     optical_ports = {
-        p.name: p for p in optical_ports.values() if p.name not in excluded_ports
+        p.name: p for p in optical_ports.copy()._ports if p.name not in excluded_ports
     }
     if isinstance(grating_coupler, list):
         grating_couplers = [gf.call_if_func(g) for g in grating_coupler]
@@ -140,7 +140,7 @@ def route_fiber_single(
     component_ref = component << component_copy
     component_ref.rotate(-90)
     component.add_ports(component_ref.ports)
-    for port_already_routed in south_ports.values():
+    for port_already_routed in south_ports.copy()._ports:
         component.ports.pop(port_already_routed.name)
 
     component.ports = select_ports(component.ports)

@@ -435,7 +435,7 @@ if __name__ == "__main__":
             s = ComponentInfo(component=c1, component_id=c1.id, name=key, value=value)
             component_settings.append(s)
 
-        for port in c.ports.values():
+        for port in c.ports.copy()._ports:
             s = Port(
                 component=c1,
                 component_id=c1.id,

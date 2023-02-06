@@ -43,7 +43,7 @@ def add_electrical_pads_shortest(
     c.component = component
     ref = c << component
     ports = select_ports(ref.ports)
-    ports = list(ports.values())
+    ports = list(ports.copy()._ports)
 
     pad_port_spacing += pad.metadata_child["full"]["size"][0] / 2
 

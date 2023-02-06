@@ -82,10 +82,10 @@ def route_ports_to_side(
 
     # Accept list of ports, Component or dict of ports
     if isinstance(ports, dict):
-        ports = list(ports.values())
+        ports = list(ports.copy()._ports)
 
     elif isinstance(ports, (Component, ComponentReference)):
-        ports = list(ports.ports.values())
+        ports = list(ports.ports.copy()._ports)
 
     # Choose which
     if side in {"north", "south"}:

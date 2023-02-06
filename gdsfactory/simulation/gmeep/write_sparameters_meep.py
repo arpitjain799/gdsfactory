@@ -354,7 +354,7 @@ def write_sparameters_meep(
 
     component_ref = component.ref()
     ports = component_ref.ports
-    port_names = [port.name for port in list(ports.values())]
+    port_names = [port.name for port in list(ports.copy()._ports)]
     port_source_names = port_source_names or port_names
     num_sims = len(port_source_names) - len(port_symmetries)
 

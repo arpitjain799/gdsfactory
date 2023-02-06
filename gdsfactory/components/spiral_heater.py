@@ -42,7 +42,7 @@ def spiral_racetrack(
     )
 
     ports = []
-    for port in bend_s.ports.values():
+    for port in bend_s.ports.copy()._ports:
         for i in range(len(spacings)):
             bend = c << bend_factory(
                 angle=180,
