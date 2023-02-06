@@ -86,7 +86,7 @@ def mmi1x2(
 
     ports = [
         gf.Port(
-            "o1",
+            name="o1",
             orientation=180,
             center=(0, 0),
             width=w_taper,
@@ -94,7 +94,7 @@ def mmi1x2(
             cross_section=x,
         ),
         gf.Port(
-            "o2",
+            name="o2",
             orientation=0,
             center=(+length_mmi, +a),
             width=w_taper,
@@ -102,7 +102,7 @@ def mmi1x2(
             cross_section=x,
         ),
         gf.Port(
-            "o3",
+            name="o3",
             orientation=0,
             center=(+length_mmi, -a),
             width=w_taper,
@@ -110,12 +110,13 @@ def mmi1x2(
             cross_section=x,
         ),
     ]
+    print(ports)
 
     for port in ports:
         taper_ref = c << taper
         taper_ref.connect(port="o2", destination=port)
         c.add_port(name=port.name, port=taper_ref.ports["o1"])
-        c.absorb(taper_ref)
+        # c.absorb(taper_ref)
 
     if with_bbox:
         padding = []

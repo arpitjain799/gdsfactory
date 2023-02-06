@@ -13,7 +13,6 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import gdstk
 import kfactory as kf
-from kfactory import Instance
 import numpy as np
 import yaml
 from kfactory import kdb
@@ -204,6 +203,20 @@ class Component(kf.KCell):
     #     self._named_references = {}
     #     self._references = []
     #     self.ports = {}
+
+    def copy(self) -> "Component":
+        """Copy the full component.
+
+        Returns:
+            cell: exact copy of the current cell
+        """
+        kdb_copy = self._kdb_cell.dup()
+        c = Component(library=self.library, kdb_cell=kdb_copy)
+        c.ports = self.ports
+        for inst in self.insts:
+            c.create_inst(inst.cell, inst.instance.trans)
+        c._locked = False
+        return c
 
     def create_inst(self, cell: kf.KCell, trans: kdb.Trans = kdb.Trans()) -> Instance:
         """Add an instance of another KCell.
@@ -881,7 +894,7 @@ class Component(kf.KCell):
                 p = port
                 return kf.KCell.create_port(
                     self,
-                    name=p.name,
+                    name=name if name is not None else p.name,
                     layer=self.layer(*p.layer),
                     port_type=p.port_type,
                     width=p.width,
@@ -910,7 +923,7 @@ class Component(kf.KCell):
                 width=width,
                 orientation=orientation,
                 parent=self,
-                layer=layer,
+                layer=self.layer(*layer),
                 port_type=port_type,
                 cross_section=cross_section,
             )
@@ -925,7 +938,7 @@ class Component(kf.KCell):
             position=center,
             width=width,
             angle=orientation,
-            layer=layer,
+            layer=self.layer(*layer),
             port_type=port_type,
         )
 
@@ -986,18 +999,6 @@ class Component(kf.KCell):
     @property
     def ymax(self):
         return self.bbox().top
-        component = self.flatten() if recursive and self.references else self
-        layers = [get_layer(layer) for layer in layers]
-
-        should_remove = not invert_selection
-        component._cell.filter(
-            spec=layers,
-            remove=should_remove,
-            polygons=True,
-            paths=True,
-            labels=include_labels,
-        )
-        return component
 
     def extract(
         self,
@@ -2153,6 +2154,7 @@ def flatten_invalid_refs_recursive(
     """
     from gdsfactory.decorators import is_invalid_ref
     from gdsfactory.functions import transformed
+    import networkx as nx
 
     def _create_dag(component):
         """DAG where components point to references which then point to components again."""
