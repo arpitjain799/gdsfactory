@@ -34,7 +34,6 @@ def compass(
         [dx / 2, dy / 2],
         [dx / 2, -dy / 2.0],
     ]
-
     c.add_polygon(points, layer=layer)
 
     if port_type:
@@ -84,10 +83,19 @@ def compass(
                 port_type=port_type,
             )
 
-        c.auto_rename_ports()
+        # c.auto_rename_ports()
     return c
 
 
 if __name__ == "__main__":
-    c = compass(size=(1, 2), layer="WG", port_type="optical", port_inclusion=0.5)
-    c.show(show_ports=True)
+    import kfactory as kf
+
+    c = gf.Component()
+    comp = compass(size=(1, 2), layer="WG", port_type="optical")
+
+    c1 = c << comp
+    c1.transform(kf.kdb.DCplxTrans(1, 30, False, 0, 0))
+
+    # c2 = c << comp
+    # c2.connect("e1", c1.ports["e3"])
+    comp.show(show_ports=True)

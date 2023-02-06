@@ -55,6 +55,20 @@ LayerSpecs = Tuple[LayerSpec, ...]
 Float2 = Tuple[float, float]
 
 
+def port_to_kport(port, library):
+    from gdsfactory.pdk import get_layer
+
+    layer = get_layer(port.layer)
+    return kf.DCplxPort(
+        name=port.name,
+        position=port.center,
+        width=port.width,
+        angle=port.orientation,
+        layer=library.layer(*layer),
+        port_type=port.port_type,
+    )
+
+
 class PortNotOnGridError(ValueError):
     pass
 
@@ -171,7 +185,9 @@ class Port:
     @classmethod
     def validate(cls, v):
         """For pydantic assumes Port is valid if has a name and a valid type."""
-        assert isinstance(v, Port), f"TypeError, Got {type(v)}, expecting Port"
+        assert isinstance(
+            v, (Port, kf.Port)
+        ), f"TypeError, Got {type(v)}, expecting Port"
         assert v.name, f"Port has no name, got `{v.name}`"
         # assert v.assert_on_grid(), f"port.center = {v.center} has off-grid points"
         return v

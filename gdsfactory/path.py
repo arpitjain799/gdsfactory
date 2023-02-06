@@ -26,7 +26,6 @@ from gdsfactory.component_layout import (
     _rotate_points,
 )
 from gdsfactory.cross_section import CrossSection, Section, Transition
-from gdsfactory.port import Port
 from gdsfactory.types import (
     Coordinates,
     CrossSectionSpec,
@@ -722,7 +721,6 @@ def extrude(
           polygon by more than the value listed here will be removed.
         shear_angle_start: an optional angle to shear the starting face by (in degrees).
         shear_angle_end: an optional angle to shear the ending face by (in degrees).
-
     """
     from gdsfactory.pdk import (
         get_active_pdk,
@@ -817,6 +815,7 @@ def extrude(
             lengths = np.cumsum(np.sqrt(dx**2 + dy**2))
             lengths = np.concatenate([[0], lengths])
             width = width(lengths / lengths[-1])
+
         dy = offset + width / 2
         # _points = _shear_face(points, dy, shear_angle_start, shear_angle_end)
 
@@ -826,6 +825,7 @@ def extrude(
             start_angle=start_angle,
             end_angle=end_angle,
         )
+
         dy = offset - width / 2
         # _points = _shear_face(points, dy, shear_angle_start, shear_angle_end)
 
@@ -896,18 +896,14 @@ def extrude(
                     warnings.warn(f"Port center {center} has off-grid ports")
 
             c.add_port(
-                port=Port(
-                    name=port_names[0],
-                    layer=get_layer(layers[0]),
-                    port_type=port_types[0],
-                    width=port_width,
-                    orientation=port_orientation,
-                    center=center,
-                    # cross_section=x.cross_section1
-                    # if hasattr(x, "cross_section1")
-                    # else x,
-                    # shear_angle=shear_angle_start,
-                )
+                name=port_names[0],
+                layer=get_layer(layers[0]),
+                port_type=port_types[0],
+                width=port_width,
+                orientation=port_orientation,
+                center=center,
+                cross_section=x,
+                # shear_angle=shear_angle_start,
             )
             # port1.info["face"] = face
         if port_names[1] is not None:
@@ -924,18 +920,14 @@ def extrude(
                 if center[0] != center_snap[0] or center[1] != center_snap[1]:
                     warnings.warn(f"Port center {center} has off-grid ports")
             c.add_port(
-                port=Port(
-                    name=port_names[1],
-                    layer=get_layer(layers[1]),
-                    port_type=port_types[1],
-                    width=port_width,
-                    center=center,
-                    orientation=port_orientation,
-                    # cross_section=x.cross_section2
-                    # if hasattr(x, "cross_section2")
-                    # else x,
-                    # shear_angle=shear_angle_end,
-                )
+                name=port_names[1],
+                layer=get_layer(layers[1]),
+                port_type=port_types[1],
+                width=port_width,
+                center=center,
+                orientation=port_orientation,
+                cross_section=x,
+                # shear_angle=shear_angle_end,
             )
             # port2.info["face"] = face
 

@@ -35,6 +35,7 @@ from gdsfactory.config import CONF, logger
 from gdsfactory.cross_section import CrossSection
 from gdsfactory.port import (
     Port,
+    port_to_kport,
     auto_rename_ports,
     auto_rename_ports_counter_clockwise,
     auto_rename_ports_layer_orientation,
@@ -99,6 +100,9 @@ def _rnd(arr, precision=1e-4):
 
 
 class Instance(kf.Instance):
+    def mirror(self):
+        self.trans.mirror = False if self.trans.is_mirror() else True
+
     def connect(
         self,
         port: str,
@@ -130,18 +134,16 @@ class Instance(kf.Instance):
                     "portname cannot be None if an Instance Object is given"
                 )
             op = other.ports[other_port_name]
-        elif isinstance(other, Port):
-            op = other
-        else:
-
-            if isinstance(other, gf.Port):
-                op = Port.from_gdsfactory_port(other)
-            else:
-                raise ValueError("other_instance must be of type Instance or Port")
         p = self.cell.ports[portname]
+        if isinstance(p, gf.Port):
+            p = port_to_kport(p, library=self.cell.library)
+        if isinstance(other, gf.Port):
+            op = port_to_kport(other, library=self.cell.library)
+        else:
+            op = other
 
         if p.width != op.width and not allow_width_mismatch:
-            raise kf.cell.PortWidthMismatch(
+            raise kf.kcell.PortWidthMismatch(
                 self,
                 other,
                 p,
@@ -150,12 +152,91 @@ class Instance(kf.Instance):
         elif (
             gf.get_layer(p.layer) != gf.get_layer(op.layer) and not allow_layer_mismatch
         ):
-            raise kf.cell.PortLayerMismatch(self.cell.library, self, other, p, op)
+            raise kf.kcell.PortLayerMismatch(self.cell.library, self, other, p, op)
         elif p.port_type != op.port_type and not allow_type_mismatch:
-            raise kf.cell.PortTypeMismatch(self, other, p, op)
+            raise kf.kcell.PortTypeMismatch(self, other, p, op)
         else:
-            conn_trans = kdb.Trans.M90 if mirror else kdb.Trans.R180
-            self.instance.trans = op.trans * conn_trans * p.trans.inverted()
+            if p.complex() or op.complex():
+                cplx_conn_trans = kdb.DCplxTrans.M90 if mirror else kdb.DCplxTrans.R180
+                self.instance.dcplx_trans = (
+                    op.dcplx_trans(self.cell.library.dbu)
+                    * cplx_conn_trans
+                    * p.dcplx_trans(self.cell.library.dbu).inverted()
+                )
+            else:
+                conn_trans = kdb.Trans.M90 if mirror else kdb.Trans.R180
+                self.instance.trans = op.trans * conn_trans * p.trans.inverted()
+
+    def move(
+        self,
+        origin: Union[Port, Coordinate, str] = (0, 0),
+        destination: Optional[Union[Port, Coordinate, str]] = None,
+        axis: Optional[str] = None,
+    ) -> ComponentReference:
+        """Move the ComponentReference from origin point to destination.
+
+        Both origin and destination can be 1x2 array-like, Port, or a key
+        corresponding to one of the Ports in this device_ref.
+
+        Args:
+            origin: Port, port_name or Coordinate.
+            destination: Port, port_name or Coordinate.
+            axis: for the movement.
+
+        Returns:
+            ComponentReference.
+        """
+        # If only one set of coordinates is defined, make sure it's used to move things
+        if destination is None:
+            destination = origin
+            origin = (0, 0)
+
+        if isinstance(origin, str):
+            if origin not in self.ports:
+                raise ValueError(f"{origin} not in {self.ports.keys()}")
+
+            origin = self.ports[origin]
+            # origin = cast(Port, origin)
+            o = origin.center
+        elif hasattr(origin, "center"):
+            # origin = cast(Port, origin)
+            o = origin.center
+        elif np.array(origin).size == 2:
+            o = origin
+        else:
+            raise ValueError(
+                f"move(origin={origin})\n"
+                f"Invalid origin = {origin!r} needs to be"
+                f"a coordinate, port or port name {list(self.ports.keys())}"
+            )
+
+        if isinstance(destination, str):
+            if destination not in self.ports:
+                raise ValueError(f"{destination} not in {self.ports.keys()}")
+
+            destination = self.ports[destination]
+            d = destination.center
+        if hasattr(destination, "center"):
+            d = destination.center
+        elif np.array(destination).size == 2:
+            d = destination
+
+        else:
+            raise ValueError(
+                f"{self.parent.name}.move(destination={destination!r}) \n"
+                f"Invalid destination = {destination!r} needs to be"
+                f"a coordinate, a port, or a valid port name {list(self.ports.keys())}"
+            )
+
+        # Lock one axis if necessary
+        if axis == "x":
+            d = (d[0], o[1])
+        if axis == "y":
+            d = (o[0], d[1])
+
+        dxdy = np.array(d) - np.array(o)
+        self.instance.dtrans = kf.kdb.DTrans(*dxdy) * self.instance.dtrans
+        return self
 
 
 class Component(kf.KCell):
@@ -213,7 +294,7 @@ class Component(kf.KCell):
         """Copy the full component.
 
         Returns:
-            cell: exact copy of the current cell
+            cell: exact copy of the current cell.
         """
         kdb_copy = self._kdb_cell.dup()
         c = Component(library=self.library, kdb_cell=kdb_copy)
@@ -242,7 +323,7 @@ class Component(kf.KCell):
         """Convenience function for :py:attr:"~create_inst(cell)`.
 
         Args:
-            cell: The cell to be added as an instance
+            cell: The cell to be added as an instance.
         """
         return self.create_inst(cell)
 
@@ -887,58 +968,42 @@ class Component(kf.KCell):
             port_type: optical, electrical, vertical_dc, vertical_te, vertical_tm.
             cross_section: port cross_section.
         """
-        from gdsfactory.pdk import get_layer
-
-        layer = get_layer(layer)
+        from gdsfactory.pdk import get_layer, get_cross_section
 
         if port:
-            if isinstance(port, kf.Port):
-                return kf.KCell.add_port(self, port)
+            name = name if name is not None else port.name
+
+            if isinstance(port, (kf.Port, kf.DPort, kf.ICplxPort, kf.DCplxPort)):
+                return kf.KCell.add_port(self, port=port, name=name)
 
             elif isinstance(port, Port):
-                p = port
-                return kf.KCell.create_port(
-                    self,
-                    name=name if name is not None else p.name,
-                    layer=self.layer(*p.layer),
-                    port_type=p.port_type,
-                    width=p.width,
-                    angle=int(p.orientation // 90),
-                    position=p.center,
+                p = kf.DCplxPort(
+                    name=name,
+                    position=port.center,
+                    width=port.width,
+                    angle=port.orientation,
+                    layer=self.layer(*port.layer),
+                    port_type=port.port_type,
                 )
+                return kf.KCell.add_port(self, p)
 
             else:
                 raise ValueError(
                     f"add_port() needs a Port or kf.Port, got {type(port)}"
                 )
 
-        elif isinstance(name, Port):
-            p = name.copy()
-            p.parent = self
-            name = p.name
-        elif center is None:
-            raise ValueError("Port needs center parameter (x, y) um.")
+        if layer is None:
+            if cross_section is None:
+                raise ValueError(
+                    f"You need to define layer or cross_section. Got {layer!r} and {cross_section}"
+                )
+            else:
+                xs = get_cross_section(cross_section)
+                layer = xs.layer
 
-        if name in self.ports:
-            raise ValueError(f"add_port() Port name {name!r} exists in {self.name!r}")
-        else:
-            p = Port(
-                name=name,
-                center=center,
-                width=width,
-                orientation=orientation,
-                parent=self,
-                layer=self.layer(*layer),
-                port_type=port_type,
-                cross_section=cross_section,
-            )
-        if name is not None:
-            p.name = name
-        if p.name in self.ports:
-            raise ValueError(f"add_port() Port name {p.name!r} exists in {self.name!r}")
+        layer = get_layer(layer)
 
-        kf.KCell.create_port(
-            self,
+        p = kf.DCplxPort(
             name=name,
             position=center,
             width=width,
@@ -946,9 +1011,12 @@ class Component(kf.KCell):
             layer=self.layer(*layer),
             port_type=port_type,
         )
+        return kf.KCell.add_port(self, p)
 
     def add_ports(
-        self, ports: Union[List[Port], Dict[str, Port]], prefix: str = ""
+        self,
+        ports: Union[List[Port], Dict[str, Port], kf.Ports, kf.kcell.InstancePorts],
+        prefix: str = "",
     ) -> None:
         """Add a list or dict of ports.
 
@@ -958,6 +1026,9 @@ class Component(kf.KCell):
             ports: list or dict of ports.
             prefix: to prepend to each port name.
         """
+        if isinstance(ports, (kf.kcell.InstancePorts, kf.Ports)):
+            ports = ports.copy()._ports
+
         for port in list(ports):
             name = f"{prefix}{port.name}" if prefix else port.name
             self.add_port(name=name, port=port)
@@ -1281,39 +1352,10 @@ class Component(kf.KCell):
         """
         if not isinstance(component, Component):
             raise TypeError(f"type = {type(Component)} needs to be a Component.")
-        # ref = ComponentReference(component, **kwargs)
-        # self._add(ref)
-        # self._register_reference(reference=ref, alias=alias)
         if alias:
             raise NotImplementedError("not yet")
 
         return self.create_inst(component)
-
-    # def _register_reference(
-    #     self, reference: ComponentReference, alias: Optional[str] = None
-    # ) -> None:
-    #     component = reference.parent
-    #     reference.owner = self
-
-    #     if alias is None:
-    #         if reference.name is not None:
-    #             alias = reference.name
-    #         else:
-    #             prefix = (
-    #                 component.settings.function_name
-    #                 if hasattr(component, "settings")
-    #                 and hasattr(component.settings, "function_name")
-    #                 else component.name
-    #             )
-    #             self._reference_names_counter.update({prefix: 1})
-    #             alias = f"{prefix}_{self._reference_names_counter[prefix]}"
-
-    #             while alias in self._named_references:
-    #                 self._reference_names_counter.update({prefix: 1})
-    #                 alias = f"{prefix}_{self._reference_names_counter[prefix]}"
-
-    #     reference.name = alias
-    #     self._named_references[alias] = reference
 
     @property
     def layers(self) -> Set[Tuple[int, int]]:
@@ -1580,14 +1622,9 @@ class Component(kf.KCell):
         from gdsfactory.show import show
 
         if show_ports:
-            component = self.copy()
-            component.draw_ports()
-            # component.name = self.name
+            self.draw_ports()
 
-        else:
-            component = self
-
-        show(component, **kwargs)
+        show(self, **kwargs)
 
     def to_3d(self, *args, **kwargs):
         """Returns Component 3D trimesh Scene.

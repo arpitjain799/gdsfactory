@@ -105,7 +105,12 @@ def mmi2x2(
 
     for port in ports:
         taper_ref = c << taper
-        taper_ref.connect(port="o2", destination=port)
+        taper_ref.connect(
+            port="o2",
+            destination=port,
+            allow_width_mismatch=True,
+            allow_layer_mismatch=True,
+        )
         c.add_port(name=port.name, port=taper_ref.ports["o1"])
         c.absorb(taper_ref)
 

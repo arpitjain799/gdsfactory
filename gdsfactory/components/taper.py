@@ -54,21 +54,21 @@ def taper(
     ypts = [y1, y2, -y2, -y1]
 
     c = gf.Component()
-    c.add_polygon((xpts, ypts), layer=layer)
+    c.add_polygon(zip(xpts, ypts), layer=layer)
 
     if x.cladding_layers and x.cladding_offsets:
         for layer, offset in zip(x.cladding_layers, x.cladding_offsets):
             y1 = width1 / 2 + offset
             y2 = width2 / 2 + offset
             ypts = [y1, y2, -y2, -y1]
-            c.add_polygon((xpts, ypts), layer=gf.get_layer(layer))
+            c.add_polygon((xpts, ypts), layer=layer)
 
     c.add_port(
         name="o1",
         center=(0, 0),
         width=width1,
         orientation=180,
-        layer=x.layer,
+        layer=x1.layer,
         cross_section=x1,
     )
     if with_two_ports:
@@ -77,7 +77,7 @@ def taper(
             center=(length, 0),
             width=width2,
             orientation=0,
-            layer=x.layer,
+            layer=x2.layer,
             cross_section=x2,
         )
 
@@ -266,7 +266,7 @@ if __name__ == "__main__":
     #         for length in [1, 2, 3]
     #     ]
     # )
-    c = taper()
+    c = taper(width2=2)
     c.show(show_ports=False)
     # c.write_gds_with_metadata("extra/tapers.gds")
 

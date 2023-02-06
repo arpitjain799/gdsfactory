@@ -65,6 +65,8 @@ def bend_euler(
         radius=radius, angle=angle, p=p, use_eff=with_arc_floorplan, npoints=npoints
     )
     ref = c << p.extrude(x)
+    # print(ref.ports)
+
     c.add_ports(ref.ports)
     c.info["length"] = snap_to_grid(p.length())
     c.info["dy"] = snap_to_grid(abs(float(p.points[0][0] - p.points[-1][0])))
