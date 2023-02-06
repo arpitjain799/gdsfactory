@@ -52,20 +52,21 @@ def sign(x: float) -> int:
 def _get_unique_port_facing(
     ports: Dict[str, Port],
     orientation: float = 0,
-    layer: Union[LayerSpec, LayerSpecs] = (1, 0),
+    layer: int = 1,
 ) -> List[Port]:
     """Ensures there is only one port."""
     ports_selected = []
+
     if isinstance(layer, list):
         for _layer in layer:
             ports_selected = select_ports_list(
-                ports=ports, orientation=orientation, layer=gf.get_layer(_layer)
+                ports=ports, orientation=orientation, layer=_layer
             )
             if ports_selected:
                 break
     else:
         ports_selected = select_ports_list(
-            ports=ports, orientation=orientation, layer=gf.get_layer(layer)
+            ports=ports, orientation=orientation, layer=layer
         )
 
     if len(ports_selected) > 1:
@@ -95,6 +96,9 @@ def _get_bend_ports(
     """
     ports = bend.ports
 
+    layer = gf.get_layer(layer)
+    layer = bend.library.layer(layer[0], layer[1])
+
     p_w = _get_unique_port_facing(ports=ports, orientation=180, layer=layer)
     p_n = _get_unique_port_facing(ports=ports, orientation=90, layer=layer)
 
@@ -109,10 +113,11 @@ def _get_straight_ports(
 
     Any standard straight wire/straight has two ports: one facing west
     and one facing east
-
     """
     ports = straight.ports
 
+    layer = gf.get_layer(layer)
+    layer = straight.library.layer(layer[0], layer[1])
     p_w = _get_unique_port_facing(ports=ports, orientation=180, layer=layer)
     p_e = _get_unique_port_facing(ports=ports, orientation=0, layer=layer)
 
@@ -141,7 +146,7 @@ def gen_sref(
     else:
         port_position = structure.ports[port_name].center
 
-    ref = gf.ComponentReference(component=structure, origin=(0, 0))
+    ref = gf.ComponentReference(structure)
 
     if x_reflection:  # Vertical mirror: Reflection across x-axis
         y0 = port_position[1]
