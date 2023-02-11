@@ -61,9 +61,9 @@ def port_to_kport(port, library):
     layer = get_layer(port.layer)
     return kf.DCplxPort(
         name=port.name,
-        position=port.center,
+        position=(float(port.center[0]), float(port.center[1])),
         width=port.width,
-        angle=port.orientation,
+        angle=float(port.orientation),
         layer=library.layer(*layer),
         port_type=port.port_type,
     )
