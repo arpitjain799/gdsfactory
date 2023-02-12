@@ -1,5 +1,5 @@
 from gdsfactory.generic_tech.layer_map import LAYER
-from gdsfactory.technology import LayerLevel, LayerStack
+from gdsfactory.technology import LayerLevel, LayerStack, DerivedLayerLevel
 
 nm = 1e-3
 
@@ -7,6 +7,7 @@ nm = 1e-3
 def get_layer_stack(
     thickness_wg: float = 220 * nm,
     thickness_slab_deep_etch: float = 90 * nm,
+    thickness_shallow_etch: float = 90 * nm,
     thickness_clad: float = 3.0,
     thickness_nitride: float = 350 * nm,
     thickness_ge: float = 500 * nm,
@@ -60,9 +61,22 @@ def get_layer_stack(
             material="sio2",
             info={"mesh_order": 99},
         )
-        core = LayerLevel(
-            layer=LAYER.WG,
+        unetched_wg = DerivedLayerLevel(
+            layer1=LAYER.WG,
+            layer2=LAYER.SHALLOW_ETCH,
             thickness=thickness_wg,
+            operator="-",
+            zmin=0.0,
+            material="si",
+            info={"mesh_order": 1},
+            sidewall_angle=10,
+            width_to_z=0.5,
+        )
+        shallow_etch_slab = DerivedLayerLevel(
+            layer1=LAYER.WG,
+            layer2=LAYER.SHALLOW_ETCH,
+            thickness=thickness_wg - thickness_shallow_etch,
+            operator="&",
             zmin=0.0,
             material="si",
             info={"mesh_order": 1},
