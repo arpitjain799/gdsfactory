@@ -62,6 +62,7 @@ def import_gds(
         D = Component(name=c.name)
         D._cell = c
         D.name = c.name
+        D.lock()
 
         if hashed_name:
             D.name = get_name_short(D.name)

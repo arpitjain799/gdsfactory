@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 
 import numpy as np
 from numpy import arctan2, degrees, isclose
@@ -66,7 +66,7 @@ def add_ports_from_markers_square(
     return component
 
 
-def add_ports_from_markers_center(
+def get_ports_from_markers_center(
     component: Component,
     pin_layer: LayerSpec = "PORT",
     port_layer: Optional[LayerSpec] = None,
@@ -81,10 +81,9 @@ def add_ports_from_markers_center(
     port_name_prefix: Optional[str] = None,
     port_type: str = "optical",
     short_ports: bool = False,
-    auto_rename_ports: bool = True,
     debug: bool = False,
-) -> Component:
-    """Add ports from rectangular pin markers.
+) -> List[Port]:
+    """Get ports from rectangular pin markers.
 
     markers at port center, so half of the marker goes inside and half outside the port.
 
@@ -105,7 +104,6 @@ def add_ports_from_markers_center(
         port_name_prefix: defaults to 'o' for optical and 'e' for electrical ports.
         port_type: type of port (optical, electrical ...).
         short_ports: if the port is on the short side rather than the long side
-        auto_rename_ports:
         debug: if True prints ports that are skipped.
 
     For inside=False the port location is at the middle of the PIN
@@ -252,7 +250,82 @@ def add_ports_from_markers_center(
                 port_type=port_type,
             )
 
-    ports = sort_ports_clockwise(ports)
+    return sort_ports_clockwise(ports)
+
+
+def add_ports_from_markers_center(
+    component: Component,
+    component_new: Optional[Component] = None,
+    **kwargs,
+) -> Component:
+    """Add ports from rectangular pin markers.
+
+    markers at port center, so half of the marker goes inside and half outside the port.
+
+    guess port orientation from the component center (xcenter)
+
+    Args:
+        component: to read port pins.
+        component_new: optional Component to write port pins. Defaults to component.
+
+    Keyword Args:
+        pin_layer: GDS layer for maker [int, int].
+        port_layer: for the new created port.
+        inside: True-> markers  inside. False-> markers at center.
+        tol: tolerance for comparing how rectangular is the pin.
+        pin_extra_width: 2*offset from pin to straight.
+        min_pin_area_um2: ignores pins with area smaller than min_pin_area_um2.
+        max_pin_area_um2: ignore pins for area above certain size.
+        skip_square_ports: skips square ports (hard to guess orientation).
+        xcenter: for guessing orientation of rectangular ports.
+        ycenter: for guessing orientation of rectangular ports.
+        port_name_prefix: defaults to 'o' for optical and 'e' for electrical ports.
+        port_type: type of port (optical, electrical ...).
+        short_ports: if the port is on the short side rather than the long side
+        debug: if True prints ports that are skipped.
+
+    For inside=False the port location is at the middle of the PIN
+
+    .. code::
+           _______________
+          |               |
+          |               |
+         |||             |||____  | pin_extra_width/2 > 0
+         |||             |||
+         |||             |||____
+         |||             |||
+          |      __       |
+          |_____|__|______|
+                |__|
+
+    For inside=True all the pin is inside the port
+
+    .. code::
+           _______________
+          |               |
+          |               |
+          |_              |
+          | |             |
+          |_|             |
+          |               |
+          |      __       |
+          |_____|__|______|
+
+    dx < dy: port is east or west
+        x > xc: east
+        x < xc: west
+
+    dx > dy: port is north or south
+        y > yc: north
+        y < yc: south
+
+    dx = dy
+        x > xc: east
+        x < xc: west
+    """
+    ports = get_ports_from_markers_center(component, **kwargs)
+
+    component_new = component_new or component
 
     for port_name, port in ports.items():
         if port_name in component.ports:
@@ -263,10 +336,8 @@ def add_ports_from_markers_center(
             )
 
         else:
-            component.add_port(name=port_name, port=port)
-    if auto_rename_ports:
-        component.auto_rename_ports()
-    return component
+            component_new.add_port(name=port_name, port=port)
+    return component_new
 
 
 add_ports_from_markers_inside = partial(add_ports_from_markers_center, inside=True)
