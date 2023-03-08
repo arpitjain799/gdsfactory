@@ -1,20 +1,26 @@
 try:
-    from ipywidgets import (
-        HTML,
-        Image,
+    from threading import Timer
+    from time import time
+    from typing import Any, Callable, Optional
+
+    from ipyevents import Event  # type: ignore[import]
+    from ipywidgets import (  # type: ignore[import]
+        Accordion,
         AppLayout,
-        VBox,
-        HBox,
         Button,
+        HBox,
+        Image,
         Label,
         Layout,
         Tab,
-        Accordion,
+        VBox,
     )
-    from ipyevents import Event
-    from typing import Optional
-    import klayout.db as db
+
+    import klayout.db as kdb
     import klayout.lay as lay
+    from gdsfactory.config import logger
+    from gdsfactory.typings import PathType
+
 except ImportError as e:
     print(
         "You need install jupyter notebook plugin with `pip install gdsfactory[full]`"
@@ -22,35 +28,66 @@ except ImportError as e:
     raise e
 
 
+def throttle(wait: float) -> Callable[..., Callable[..., None]]:
+    """Decorator that prevents a function from being called
+    more than once every wait period."""
+
+    def decorator(fn: Callable[..., None]) -> Callable[..., None]:
+        time_of_last_call: float = 0
+        scheduled, timer = False, None
+        new_args, new_kwargs = None, None
+
+        def throttled(*args: Any, **kwargs: Any) -> None:
+            nonlocal new_args, new_kwargs, time_of_last_call, scheduled, timer
+
+            def call_it() -> None:
+                nonlocal new_args, new_kwargs, time_of_last_call, scheduled, timer
+                time_of_last_call = time()
+                fn(*new_args, **new_kwargs)  # type: ignore
+                scheduled = False
+
+            time_since_last_call = time() - time_of_last_call
+            new_args, new_kwargs = args, kwargs
+            if not scheduled:
+                scheduled = True
+                new_wait = max(0, wait - time_since_last_call)
+                timer = Timer(new_wait, call_it)
+                timer.start()
+
+        return throttled
+
+    return decorator
+
+
 class LayoutViewer:
     def __init__(
         self,
-        filepath: str,
-        layer_properties: Optional[str],
+        filepath: PathType,
+        layer_properties: Optional[str] = None,
         hide_unused_layers: bool = True,
         with_layer_selector: bool = True,
     ):
-        filepath = str(filepath)
         layer_properties = str(layer_properties)
         self.hide_unused_layers = hide_unused_layers
-        self.filepath = filepath
         self.layer_properties = layer_properties
 
         self.layout_view = lay.LayoutView()
-        self.load_layout(filepath, layer_properties)
+        self.load_layout(str(filepath), layer_properties)
+        self.layout_view.max_hier()
+        self.layout_view.resize(800, 600)
+        self.layout_view.add_missing_layers()
+        png_data = self.layout_view.get_screenshot_pixels().to_png_data()
 
-        if self.hide_unused_layers:
-            self.layout_view.remove_unused_layers()
-            self.layout_view.reload_layout(self.layout_view.current_layer_list)
+        # if self.hide_unused_layers:
+        #     self.layout_view.remove_unused_layers()
+        #     self.layout_view.reload_layout(self.layout_view.current_layer_list)
 
-        pixel_buffer = self.layout_view.get_pixels_with_options(800, 600)
-        png_data = pixel_buffer.to_png_data()
         self.image = Image(value=png_data, format="png")
+        self.refresh()
         scroll_event = Event(source=self.image, watched_events=["wheel"])
         scroll_event.on_dom_event(self.on_scroll)
-        self.wheel_info = HTML("Waiting for a scroll...")
-        self.mouse_info = HTML("Waiting for a mouse event...")
-        # self.layout_view.on_image_updated_event = lambda: self.refresh
+        self.layout_view.on_image_updated_event = self.refresh  # type: ignore[attr-defined]
+
         mouse_event = Event(
             source=self.image, watched_events=["mousedown", "mouseup", "mousemove"]
         )
@@ -58,7 +95,7 @@ class LayoutViewer:
 
         if with_layer_selector:
             layer_selector_tabs = self.layer_selector_tabs = self.build_layer_selector(
-                max_height=pixel_buffer.height()
+                max_height=self.layout_view.viewport_height()
             )
         else:
             layer_selector_tabs = None
@@ -72,31 +109,30 @@ class LayoutViewer:
             justify_items="left",
         )
 
-    def button_toggle(self, button):
+    def button_toggle(self, button: Button) -> None:
         button.style.button_color = (
             "transparent"
             if (button.style.button_color == button.default_color)
             else button.default_color
         )
 
-        layer_iter = self.layout_view.begin_layers()
-
-        while not layer_iter.at_end():
-            props = layer_iter.current()
-            if props.name == button.layer_props.name:
+        logger.info("button toggle")
+        for props in self.layout_view.each_layer():
+            if props == button.layer_props:
                 props.visible = not props.visible
-                self.layout_view.set_layer_properties(layer_iter, props)
-                self.layout_view.reload_layout(self.layout_view.current_layer_list)
+                props.name = button.name
+                # self.layout_view.reload_layout(
+                #     self.layout_view.active_cellview().index()
+                # )
+                button.layer_props = props
                 break
-            layer_iter.next()
         self.refresh()
 
-    def build_layer_toggle(self, prop_iter: lay.LayerPropertiesIterator):
-        from gdsfactory.utils.color_utils import ensure_six_digit_hex_color
+    def build_layer_toggle(self, prop_iter: lay.LayerPropertiesIterator) -> HBox:
+        # from gdsfactory.utils.color_utils import ensure_six_digit_hex_color
 
         props = prop_iter.current()
-        layer_color = ensure_six_digit_hex_color(props.eff_fill_color())
-
+        layer_color = f"#{props.eff_fill_color():06x}"
         # Would be nice to use LayoutView.icon_for_layer() rather than simple colored box
         button_layout = Layout(
             width="5px",
@@ -119,18 +155,35 @@ class LayoutViewer:
             children = []
             for _i in range(n_children):
                 prop_iter = prop_iter.next()
-                children.append(self.build_layer_toggle(prop_iter))
-            layer_label = Accordion([VBox(children)], titles=(props.name,))
+                _layer_toggle = self.build_layer_toggle(prop_iter)
+                children.append(_layer_toggle)
+                layer_label = Accordion([VBox(children)], titles=(props.name,))
+                layer_checkbox.label = layer_label
+                layer_checkbox.name = layer_label.value
+
+                layer_checkbox.on_click(self.button_toggle)
+                return HBox([layer_checkbox, layer_label])
         else:
-            layer_label = Label(props.name)
-        layer_checkbox.label = layer_label
+            cell = self.layout_view.active_cellview().cell
+            if (
+                not cell.bbox_per_layer(prop_iter.current().layer_index()).empty()
+                and not prop_iter.current().has_children()
+            ):
+                # all_boxes.append(layer_toggle)
+                if props.name:
+                    layer_label = Label(props.name)
+                else:
+                    layer_label = Label(f"{props.source_layer}/{props.source_datatype}")
+                layer_checkbox.label = layer_label
+                layer_checkbox.name = layer_label.value
 
-        layer_checkbox.on_click(self.button_toggle)
-        return HBox([layer_checkbox, layer_label])
+                layer_checkbox.on_click(self.button_toggle)
+                return HBox([layer_checkbox, layer_label])
+            else:
+                return None
 
-    def build_layer_selector(self, max_height: float):
+    def build_layer_selector(self, max_height: float) -> Tab:
         """Builds a widget for toggling layer displays.
-
         Args:
             max_height: Maximum height to set for the widget (likely the height of the pixel buffer).
         """
@@ -140,7 +193,8 @@ class LayoutViewer:
         prop_iter = self.layout_view.begin_layers()
         while not prop_iter.at_end():
             layer_toggle = self.build_layer_toggle(prop_iter)
-            all_boxes.append(layer_toggle)
+            if layer_toggle:
+                all_boxes.append(layer_toggle)
             prop_iter.next()
 
         layers_layout = Layout(
@@ -153,9 +207,8 @@ class LayoutViewer:
         layer_selector_tabs.titles = ("Layers",)
         return layer_selector_tabs
 
-    def load_layout(self, filepath: str, layer_properties: Optional[str]):
+    def load_layout(self, filepath: str, layer_properties: Optional[str]) -> None:
         """Loads a GDS layout.
-
         Args:
             filepath: path for the GDS layout.
             layer_properties: Optional path for the layer_properties klayout file (lyp).
@@ -165,12 +218,14 @@ class LayoutViewer:
         if layer_properties:
             self.layout_view.load_layer_props(layer_properties)
 
-    def refresh(self):
-        pixel_buffer = self.layout_view.get_pixels_with_options(800, 600)
-        png_data = pixel_buffer.to_png_data()
+    def refresh(self) -> None:
+        # print(i)
+        self.layout_view.timer()  # type: ignore[attr-defined]
+        png_data = self.layout_view.get_screenshot_pixels().to_png_data()
         self.image.value = png_data
+        self.layout_view.timer()  # type: ignore[attr-defined]
 
-    def _get_modifier_buttons(self, event):
+    def _get_modifier_buttons(self, event: Event) -> int:
         shift = event["shiftKey"]
         alt = event["altKey"]
         ctrl = event["ctrlKey"]
@@ -195,21 +250,20 @@ class LayoutViewer:
 
         return buttons
 
-    def on_scroll(self, event):
-        delta = event["deltaY"]
-        # x = event["offsetX"]
-        # y = event["offsetY"]
-        self.wheel_info.value = f"scroll event: {event}"
-        # buttons = self._get_modifier_buttons(event)
+    @throttle(0.05)
+    def on_scroll(self, event: Event) -> None:
+        self.layout_view.timer()  # type: ignore[attr-defined]
+        delta = int(event["deltaY"])
+        x = event["offsetX"]
+        y = event["offsetY"]
+        buttons = self._get_modifier_buttons(event)
         # TODO: this is what I *want* to respond with, but it doesn't work, so I am using zoom_in/zoom_out instead
-        # self.layout_view.send_wheel_event(delta, False, db.Point(x, y), buttons)
-        if delta < 0:
-            self.layout_view.zoom_in()
-        else:
-            self.layout_view.zoom_out()
+        self.layout_view.send_wheel_event(-delta, False, kdb.DPoint(x, y), buttons)
         self.refresh()
 
-    def on_mouse_down(self, event):
+    @throttle(0.05)
+    def on_mouse_down(self, event: Event) -> None:
+        self.layout_view.timer()  # type: ignore[attr-defined]
         x = event["offsetX"]
         y = event["offsetY"]
         moved_x = event["movementX"]
@@ -217,10 +271,11 @@ class LayoutViewer:
         buttons = self._get_modifier_buttons(event)
         # TODO: this part is also not working. why?
         if event == "mousedown":
-            self.layout_view.send_mouse_press_event(db.Point(x, y), buttons)
+            self.layout_view.send_mouse_press_event(kdb.DPoint(x, y), buttons)
         elif event == "mouseup":
-            self.layout_view.send_mouse_release_event(db.Point(x, y), buttons)
+            self.layout_view.send_mouse_release_event(kdb.DPoint(x, y), buttons)
         elif event == "mousemove":
-            self.layout_view.send_mouse_move_event(db.Point(moved_x, moved_y), buttons)
+            self.layout_view.send_mouse_move_event(
+                kdb.DPoint(moved_x, moved_y), buttons
+            )
         self.refresh()
-        self.mouse_info.value = f"mouse event: {event}"
