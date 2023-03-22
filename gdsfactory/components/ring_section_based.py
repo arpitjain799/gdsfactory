@@ -112,14 +112,12 @@ def ring_section_based(
         ang = cross_sections_angles[key]
         xsec = cross_sections[key]
 
-        b = bend_circular(angle=ang, with_bbox=False, cross_section=xsec, radius=radius)
+        b = bend_circular(angle=ang, cross_section=xsec, radius=radius)
 
         sections_dict[key] = (b, "o1", "o2")
 
     if start_cross_section is not None:
-        b = bend_circular(
-            angle=start_angle, with_bbox=False, cross_section=start_xs, radius=radius
-        )
+        b = bend_circular(angle=start_angle, cross_section=start_xs, radius=radius)
         if "0" in sections_dict:
             raise ValueError(
                 "Please do not have '0' as a key for the cross_sections dict"
@@ -203,7 +201,6 @@ if __name__ == "__main__":
 
     # rib = c << straight(length = 100, cross_section="rib")
     # b_rib = c << bend_circular(angle = 10,
-    #                       with_bbox = True,
     #                       cross_section = "slot",
     #                       radius=5)
     # strip = c << straight(length = 100, cross_section="strip")
@@ -223,7 +220,6 @@ if __name__ == "__main__":
     )
 
     # b = c << bend_circular(angle = 15,
-    #                     with_bbox = True,
     #                     cross_section = "strip",)
     # print(b.ports)
     # b.rotate(-7.5)

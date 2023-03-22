@@ -87,7 +87,6 @@ settings:
     width: 0.5
     width_mmi: 10.0
     width_taper: 1.7
-    with_bbox: true
   full:
     cross_section: strip
     gap_mmi: 0.8
@@ -100,7 +99,6 @@ settings:
     width: 0.5
     width_mmi: 10.0
     width_taper: 1.7
-    with_bbox: true
   function_name: mmi_90degree_hybrid
   info: {}
   info_version: 2

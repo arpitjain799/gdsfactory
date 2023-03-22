@@ -1,4 +1,4 @@
-name: mzi_f7f1cb39
+name: mzi_2094e427
 ports:
   o1:
     center:
@@ -43,7 +43,6 @@ settings:
             - 34
             - 0
             width: 0.9
-        with_bbox: true
     cross_section:
       function: cross_section
       settings:
@@ -93,7 +92,6 @@ settings:
             - 34
             - 0
             width: 0.9
-        with_bbox: true
   child: null
   default:
     bend:
@@ -136,7 +134,6 @@ settings:
             - 34
             - 0
             width: 0.9
-        with_bbox: true
     combiner: null
     cross_section:
       function: cross_section
@@ -198,7 +195,6 @@ settings:
             - 34
             - 0
             width: 0.9
-        with_bbox: true
     straight_x_bot: null
     straight_x_top: null
     straight_y: null
@@ -207,4 +203,4 @@ settings:
   info: {}
   info_version: 2
   module: gdsfactory.components.mzi
-  name: mzi_f7f1cb39
+  name: mzi_2094e427

@@ -7,7 +7,6 @@ from gdsfactory.gdsdiff.gdsdiff import xor_polygons
 def test_differences() -> None:
     straight = gf.partial(
         gf.components.straight,
-        with_bbox=True,
         cladding_layers=None,
         add_pins=None,
         add_bbox=None,
@@ -22,7 +21,6 @@ def test_differences() -> None:
 def test_no_differences() -> None:
     straight = gf.partial(
         gf.components.straight,
-        with_bbox=True,
         cladding_layers=None,
         add_pins=None,
         add_bbox=None,

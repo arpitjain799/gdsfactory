@@ -35,7 +35,6 @@ settings:
     layer_heater: HEATER
     npoints: null
     radius: 10
-    with_bbox: true
   full:
     angle: 90
     cross_section: strip
@@ -44,7 +43,6 @@ settings:
     layer_heater: HEATER
     npoints: null
     radius: 10
-    with_bbox: true
   function_name: bend_circular_heater
   info:
     length: 15.708

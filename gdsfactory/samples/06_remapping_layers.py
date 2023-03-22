@@ -9,10 +9,6 @@ def test_remap_layers() -> Component:
     c = gf.Component("test_remap_layers_sample_device")
     straight = gf.partial(
         gf.components.straight,
-        with_bbox=True,
-        cladding_layers=None,
-        add_pins=None,
-        add_bbox=None,
     )
 
     wg1 = c << straight(length=11, width=1, layer=(1, 0))

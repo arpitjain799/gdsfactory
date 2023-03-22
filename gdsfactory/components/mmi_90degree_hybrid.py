@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import gdsfactory as gf
-from gdsfactory.add_padding import get_padding_points
 from gdsfactory.component import Component
 from gdsfactory.components.straight import straight as straight_function
 from gdsfactory.components.taper import taper as taper_function
@@ -18,7 +17,6 @@ def mmi_90degree_hybrid(
     gap_mmi: float = 0.8,
     taper: ComponentSpec = taper_function,
     straight: CrossSectionSpec = straight_function,
-    with_bbox: bool = True,
     cross_section: CrossSectionSpec = "strip",
 ) -> Component:
     r"""90 degree hybrid based on a 4x4 MMI.
@@ -40,7 +38,6 @@ def mmi_90degree_hybrid(
         gap_mmi: (width_taper + gap between tapered wg)/2.
         taper: taper function.
         straight: straight function.
-        with_bbox: box in bbox_layers and bbox_offsets avoid DRC sharp edges.
         cross_section: spec.
 
 
@@ -148,26 +145,7 @@ def mmi_90degree_hybrid(
         c.add_port(name=port.name, port=taper_ref.ports["o1"])
         c.absorb(taper_ref)
 
-    if with_bbox:
-        x = gf.get_cross_section(cross_section)
-        padding = []
-        for offset in x.bbox_offsets:
-            points = get_padding_points(
-                component=c,
-                default=0,
-                bottom=offset,
-                top=offset,
-            )
-            padding.append(points)
-
-        for layer, points in zip(x.bbox_layers, padding):
-            c.add_polygon(points, layer=layer)
-
     c.absorb(mmi)
-    if x.add_bbox:
-        c = x.add_bbox(c)
-    if x.add_pins:
-        c = x.add_pins(c)
     return c
 
 

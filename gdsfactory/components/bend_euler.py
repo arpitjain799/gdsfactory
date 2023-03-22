@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import gdsfactory as gf
-from gdsfactory.add_padding import get_padding_points
 from gdsfactory.component import Component
 from gdsfactory.components.straight import straight
 from gdsfactory.components.wire import wire_corner
@@ -18,7 +17,6 @@ def bend_euler(
     with_arc_floorplan: bool = True,
     npoints: Optional[int] = None,
     direction: str = "ccw",
-    with_bbox: bool = True,
     cross_section: CrossSectionSpec = "strip",
     **kwargs,
 ) -> Component:
@@ -41,7 +39,6 @@ def bend_euler(
           with parameters `radius` and `angle`.
         npoints: Number of points used per 360 degrees.
         direction: cw (clock-wise) or ccw (counter clock-wise).
-        with_bbox: add bbox_layers and bbox_offsets to avoid DRC sharp edges.
         cross_section: specification (CrossSection, string, CrossSectionFactory dict).
         kwargs: cross_section settings.
 
@@ -75,22 +72,6 @@ def bend_euler(
     if x.info:
         c.info.update(x.info)
 
-    if with_bbox and x.bbox_layers:
-        padding = []
-        for offset in x.bbox_offsets:
-            top = offset if angle == 180 else 0
-            points = get_padding_points(
-                component=c,
-                default=0,
-                bottom=offset,
-                right=offset,
-                top=top,
-            )
-            padding.append(points)
-
-        for layer, points in zip(x.bbox_layers, padding):
-            c.add_polygon(points, layer=layer)
-
     if direction == "cw":
         ref.mirror(p1=[0, 0], p2=[1, 0])
 
@@ -113,7 +94,6 @@ def bend_euler_s(**kwargs) -> Component:
           with parameters `radius` and `angle`.
         npoints: Number of points used per 360 degrees.
         direction: cw (clock-wise) or ccw (counter clock-wise).
-        with_bbox: add bbox_layers and bbox_offsets to avoid DRC sharp edges.
         cross_section: specification (CrossSection, string, CrossSectionFactory dict).
         kwargs: cross_section settings.
 

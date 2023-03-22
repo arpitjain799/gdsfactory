@@ -16,7 +16,6 @@ def taper(
     width1: float = 0.5,
     width2: Optional[float] = None,
     port: Optional[Port] = None,
-    with_bbox: bool = True,
     with_two_ports: bool = True,
     cross_section: CrossSectionSpec = "strip",
     **kwargs,
@@ -30,7 +29,6 @@ def taper(
         width1: width of the west port.
         width2: width of the east port.
         port: can taper from a port instead of defining width1.
-        with_bbox: box in bbox_layers and bbox_offsets to avoid DRC sharp edges.
         with_two_ports: includes a second port.
             False for terminator and edge coupler fiber interface.
         cross_section: specification (CrossSection, string, CrossSectionFactory dict).
@@ -81,28 +79,9 @@ def taper(
             cross_section=x2,
         )
 
-    if with_bbox and length:
-        padding = []
-        for offset in x.bbox_offsets:
-            points = get_padding_points(
-                component=c,
-                default=0,
-                bottom=offset,
-                top=offset,
-            )
-            padding.append(points)
-
-        for layer, points in zip(x.bbox_layers, padding):
-            c.add_polygon(points, layer=layer)
-
     c.info["length"] = length
     c.info["width1"] = float(width1)
     c.info["width2"] = float(width2)
-
-    if x.add_bbox:
-        c = x.add_bbox(c)
-    if x.add_pins:
-        c = x.add_pins(c)
     return c
 
 
@@ -186,11 +165,6 @@ def taper_strip_to_ridge(
 
         for layer, points in zip(bbox_layers, padding):
             c.add_polygon(points, layer=layer)
-
-    if x.add_bbox:
-        c = x.add_bbox(c)
-    if x.add_pins:
-        c = x.add_pins(c)
     return c
 
 

@@ -9,12 +9,10 @@ settings:
       cross_section: strip
       length: 10.0
       npoints: 2
-      with_bbox: true
     full:
       cross_section: strip
       length: 10.0
       npoints: 2
-      with_bbox: true
     function_name: straight
     info:
       cross_section: strip

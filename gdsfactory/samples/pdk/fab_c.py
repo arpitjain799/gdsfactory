@@ -99,12 +99,10 @@ xs_no = gf.partial(
 
 
 # LEAF COMPONENTS have pins
-bend_euler_nc = gf.partial(
-    gf.components.bend_euler, cross_section=xs_nc, with_bbox=True
-)
-straight_nc = gf.partial(gf.components.straight, cross_section=xs_nc, with_bbox=True)
-bend_euler_o = gf.partial(gf.components.bend_euler, cross_section=xs_no, with_bbox=True)
-straight_o = gf.partial(gf.components.straight, cross_section=xs_no, with_bbox=True)
+bend_euler_nc = gf.partial(gf.components.bend_euler, cross_section=xs_nc)
+straight_nc = gf.partial(gf.components.straight, cross_section=xs_nc)
+bend_euler_o = gf.partial(gf.components.bend_euler, cross_section=xs_no)
+straight_o = gf.partial(gf.components.straight, cross_section=xs_no)
 
 mmi1x2_nc = gf.partial(
     gf.components.mmi1x2,

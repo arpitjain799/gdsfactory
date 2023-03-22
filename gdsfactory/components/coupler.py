@@ -76,18 +76,12 @@ def coupler(
     c.absorb(cs)
     c.info["length"] = sbend.info["length"]
     c.info["min_bend_radius"] = sbend.info["min_bend_radius"]
-    c.auto_rename_ports()
-
-    x = gf.get_cross_section(cross_section, **kwargs)
-    if x.add_bbox:
-        c = x.add_bbox(c)
-    if x.add_pins:
-        c = x.add_pins(c)
     return c
 
 
 if __name__ == "__main__":
-    c = coupler(bbox_offsets=[0.5], bbox_layers=[(111, 0)])
+    # c = coupler(bbox_offsets=[0.5], bbox_layers=[(111, 0)])
+    c = coupler(cross_section="rib_conformal", dy=20)
     c.show(show_ports=True)
 
     # c = gf.Component()

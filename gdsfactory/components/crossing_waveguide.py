@@ -6,7 +6,6 @@ import numpy as np
 from numpy import float64
 
 import gdsfactory as gf
-from gdsfactory.add_padding import get_padding_points
 from gdsfactory.cell import cell
 from gdsfactory.component import Component
 from gdsfactory.components.bezier import (
@@ -100,7 +99,7 @@ def crossing(
         arm: arm spec.
         cross_section: spec.
     """
-    x = gf.get_cross_section(cross_section)
+    gf.get_cross_section(cross_section)
     c = Component()
     arm = gf.get_component(arm)
     arm_h = arm.ref()
@@ -114,20 +113,6 @@ def crossing(
             c.add_port(name=port_id, port=p)
             port_id += 1
     c.auto_rename_ports()
-
-    x.add_bbox_layers(c)
-
-    if x.cladding_layers and x.cladding_offsets:
-        padding = []
-        for offset in x.cladding_offsets:
-            points = get_padding_points(component=c, default=offset)
-        for layer, points in zip(x.bbox_layers, padding):
-            c.add_polygon(points, layer=layer)
-
-    if x.add_bbox:
-        c = x.add_bbox(c)
-    if x.add_pins:
-        c = x.add_pins(c)
     return c
 
 
@@ -321,13 +306,6 @@ def crossing45(
     c.add_port("o3", port=b_tr.ports["o2"])
     c.add_port("o4", port=b_br.ports["o2"])
     c.snap_ports_to_grid()
-
-    x = gf.get_cross_section(cross_section)
-    if x.add_bbox:
-        c = x.add_bbox(c)
-    if x.add_pins:
-        c = x.add_pins(c)
-
     return c
 
 
@@ -370,7 +348,7 @@ def compensation_path(
     """
     import scipy.optimize as so
 
-    x = gf.get_cross_section(cross_section)
+    gf.get_cross_section(cross_section)
 
     # Get total path length taken by the bends
     crossing45 = gf.get_component(crossing45)
@@ -436,18 +414,6 @@ def compensation_path(
 
     c.info["min_bend_radius"] = sbend.info["min_bend_radius"]
     c.info["sbend"] = sbend.info
-
-    if x.cladding_layers and x.cladding_offsets:
-        padding = []
-        for offset in x.cladding_offsets:
-            points = get_padding_points(component=c, default=offset)
-        for layer, points in zip(x.bbox_layers, padding):
-            c.add_polygon(points, layer=layer)
-
-    if x.add_bbox:
-        c = x.add_bbox(c)
-    if x.add_pins:
-        c = x.add_pins(c)
     return c
 
 
